@@ -556,6 +556,9 @@ button {
   padding: 7px 14px;
   background: transparent;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .segmented .btn-primary,
 .segmented button:first-child {
