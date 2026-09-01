@@ -138,7 +138,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
               Live funnel progression
             </h2>
           </div>
-          <small className="text-xs text-[#657083] sm:text-right sm:max-w-[200px]">
+          <small className="text-xs text-[#657083] sm:text-right sm:max-w-[400px]">
             Updated automatically from conversations and appointments
           </small>
         </div>
@@ -212,6 +212,39 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
               />
             ))}
           </div>
+        </div>
+      </div>
+      {/* ── Vehicle Availability Info ── */}
+      <div className="w-full bg-white border border-[#e2e2e2] rounded-xl px-4 sm:px-5 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {/* Left Side */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center justify-center shrink-0">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#cf1d29"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 17h14" />
+              <path d="M6 17V9l2-4h8l2 4v8" />
+              <path d="M3 13h18" />
+              <circle cx="7" cy="17" r="1.5" />
+              <circle cx="17" cy="17" r="1.5" />
+            </svg>
+          </div>
+
+          <span className="text-xs sm:text-sm text-[#46505f] truncate">
+            660 vehicles available from 1052 monitored records
+          </span>
+        </div>
+
+        {/* Right Side */}
+        <div className="text-xs sm:text-sm text-[#46505f] sm:text-right whitespace-normal sm:whitespace-nowrap">
+          Inventory source: bydmelbourne.com.au · SMS: simulation-only
         </div>
       </div>
     </div>
