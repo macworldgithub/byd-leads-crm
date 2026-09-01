@@ -39,7 +39,7 @@ export default function LeadCentre() {
     () =>
       (
         ({
-          Dashboard: <Dashboard />,
+          Dashboard: <Dashboard onNavigate={setActive} />,
           "Leads Pipeline": <Pipeline onModal={setModal} />,
           Conversations: <Conversations />,
           Inventory: <Inventory />,

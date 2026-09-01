@@ -93,7 +93,7 @@ function LogItem({ title, meta }: { title: string; meta: string }) {
   );
 }
 
-export function Dashboard() {
+export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       {/* ── Stat Cards ── */}
@@ -144,10 +144,10 @@ export function Dashboard() {
         </div>
         <div className="flex flex-row gap-2 sm:gap-3 overflow-x-auto pb-1">
           {[
-            { label: "Imported",  sub: "Autogate captured", Icon: Network,    count: 6 },
-            { label: "Engaged",   sub: "Two-way SMS",       Icon: MessageSquare, count: 6 },
-            { label: "Qualified", sub: "Needs captured",    Icon: Zap,        count: 6 },
-            { label: "Committed", sub: "Test drives",       Icon: CalendarDays, count: 3 },
+            { label: "Imported", sub: "Autogate captured", Icon: Network, count: 6 },
+            { label: "Engaged", sub: "Two-way SMS", Icon: MessageSquare, count: 6 },
+            { label: "Qualified", sub: "Needs captured", Icon: Zap, count: 6 },
+            { label: "Committed", sub: "Test drives", Icon: CalendarDays, count: 3 },
           ].map(({ label, sub, Icon, count }, i) => (
             <FunnelStep
               key={label}
@@ -174,7 +174,9 @@ export function Dashboard() {
                 Live prospect journeys
               </h2>
             </div>
-            <button className="flex items-center gap-1 text-xs text-[#657083] hover:text-[#cf1d29] transition-colors mt-1 shrink-0">
+            <button
+              onClick={() => onNavigate?.("Leads Pipeline")}
+              className="flex items-center gap-1 text-xs text-[#657083] hover:text-[#cf1d29] transition-colors mt-1 shrink-0">
               View board <ArrowRight size={13} />
             </button>
           </div>
