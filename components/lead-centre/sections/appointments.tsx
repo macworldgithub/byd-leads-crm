@@ -1,9 +1,26 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { Card, Pill, PageHeader } from "../shared";
+import { useState, useEffect } from "react";
+
+const STATUS_OPTIONS = [
+  "Proposed",
+  "Confirmed",
+  "Completed",
+  "Cancelled",
+  "No Show",
+];
 
 export function Appointments() {
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleClick = () => setOpenDropdown(null);
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
+
   return (
     <>
       <PageHeader
@@ -22,7 +39,6 @@ export function Appointments() {
                 "Dealership",
                 "Booked By",
                 "Status",
-                "",
               ].map((h) => (
                 <th key={h}>{h}</th>
               ))}
@@ -62,7 +78,7 @@ export function Appointments() {
                 "BYD Fairfield VIC",
                 "AI",
               ],
-            ].map((r) => (
+            ].map((r, i) => (
               <tr key={r[1]}>
                 <td>
                   <b>{r[0]}</b>
@@ -75,11 +91,36 @@ export function Appointments() {
                 <td>{r[3]}</td>
                 <td>{r[4]}</td>
                 <td>{r[5]}</td>
-                <td>
-                  <Pill tone="green">Confirmed</Pill>
-                </td>
-                <td>
-                  <ChevronDown size={15} />
+                <td
+                  className="relative cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenDropdown(openDropdown === i ? null : i);
+                  }}
+                >
+                  <div className="flex items-center gap-2 w-fit">
+                    <Pill tone="green">Confirmed</Pill>
+                    <ChevronDown size={15} className="text-gray-400" />
+                  </div>
+                  {openDropdown === i && (
+                    <div className="absolute top-full right-0 mt-1 w-40 bg-white border border-[#e2e2e2] shadow-lg rounded-md py-1 z-50">
+                      {STATUS_OPTIONS.map((opt) => (
+                        <div
+                          key={opt}
+                          className={`px-4 py-2 text-sm flex items-center justify-between transition-colors ${
+                            opt === "Confirmed"
+                              ? "bg-red-50 text-[#cf1d29]"
+                              : "text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {opt}
+                          {opt === "Confirmed" && (
+                            <Check size={14} className="text-[#cf1d29]" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

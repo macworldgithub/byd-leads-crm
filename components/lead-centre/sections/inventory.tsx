@@ -21,12 +21,44 @@ export function Inventory() {
         <input placeholder="Search stock #, model, colour..." />
         <select>
           <option>All models</option>
+          <option>ATTO 1</option>
+          <option>ATTO 2</option>
+          <option>ATTO 3</option>
+          <option>DOLPHINE</option>
+          <option>SEAL</option>
+          <option>SEAL 6</option>
+          <option>SEALION 5</option>
+          <option>SEALION 6</option>
+          <option>SEALION 7</option>
+          <option>SEALION 8</option>
+          <option>SHARK 6</option>
+
         </select>
         <select>
           <option>All statuses</option>
+          <option>Avaliable</option>
+          <option>In Transit</option>
+          <option>Sold</option>
+          <option>Unavailable</option>
         </select>
         <select>
           <option>All pickup locations</option>
+          <option>BYD Box Hill</option>
+          <option>BYD Campbelltown</option>
+          <option>BYD Caroline Springs</option>
+          <option>BYD Castle Hill</option>
+          <option>BYD Fairfield</option>
+          <option>BYD Fairfield VIC</option>
+          <option>BYD Haberfield</option>
+          <option>BYD Homebush</option>
+          <option>BYD Melbourne City</option>
+          <option>BYD Nowra</option>
+          <option>BYD Rockdale</option>
+          <option>BYD Wagga Wagga</option>
+          <option>BYD Windsor</option>
+          <option>BYD Wodonga</option>
+          <option>BYD Wollongong</option>
+          <option>NSW VPC</option>
         </select>
       </div>
       <Card className="table-wrap">
