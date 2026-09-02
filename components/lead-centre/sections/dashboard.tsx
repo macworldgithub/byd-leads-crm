@@ -8,12 +8,12 @@ import {
   Users,
   Zap,
   ArrowRight,
-  Bot,
+  Loader2,
 } from "lucide-react";
-import { leads } from "../data";
+import { useEffect, useState } from "react";
+import { getDashboard, type DashboardData, type Lead } from "@/lib/api";
 import { Prospect } from "../shared";
 
-// Inline small primitives to avoid CSS-class conflicts when using Tailwind
 function StatCard({
   icon: Icon,
   title,
@@ -23,7 +23,7 @@ function StatCard({
 }: {
   icon: any;
   title: string;
-  value: string;
+  value: string | number;
   desc: string;
   tone?: "red" | "teal" | "amber" | "slate";
 }) {
@@ -93,7 +93,60 @@ function LogItem({ title, meta }: { title: string; meta: string }) {
   );
 }
 
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div className={`animate-pulse bg-gray-100 rounded-xl ${className}`} />
+  );
+}
+
 export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getDashboard()
+      .then(setData)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4 sm:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-[88px]" />)}
+        </div>
+        <Skeleton className="h-[180px]" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-[320px]" />
+          <Skeleton className="h-[320px]" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-48 text-[#657083]">
+        <div className="text-center">
+          <p className="text-sm font-semibold text-red-500 mb-1">Could not connect to API</p>
+          <p className="text-xs">{error}</p>
+          <p className="text-xs mt-2">Make sure the backend is running on port 4000.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { stats, funnel, recentLeads } = data!;
+
+  const funnelSteps = [
+    { label: "Imported", sub: "Autogate captured", Icon: Network, count: funnel.imported },
+    { label: "Engaged", sub: "Two-way SMS", Icon: MessageSquare, count: funnel.engaged },
+    { label: "Qualified", sub: "Needs captured", Icon: Zap, count: funnel.qualified },
+    { label: "Committed", sub: "Test drives", Icon: CalendarDays, count: funnel.committed },
+  ];
+
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       {/* ── Stat Cards ── */}
@@ -101,27 +154,27 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
         <StatCard
           icon={Users}
           title="Active Journeys"
-          value="6"
+          value={stats.activeJourneys}
           desc="All attachment prospects are active"
         />
         <StatCard
           icon={CalendarDays}
           title="Appointments"
-          value="3"
+          value={stats.appointments}
           desc="Confirmed dealership test drives"
           tone="teal"
         />
         <StatCard
           icon={MessageSquare}
           title="Conversation Activity"
-          value="43"
+          value={stats.conversationActivity}
           desc="0 inbound · 0 outbound today"
           tone="slate"
         />
         <StatCard
           icon={Users}
           title="Human Assisted"
-          value="1"
+          value={stats.humanAssisted}
           desc="Specialist takeover in progress"
           tone="amber"
         />
@@ -143,12 +196,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
           </small>
         </div>
         <div className="flex flex-row gap-2 sm:gap-3 overflow-x-auto pb-1">
-          {[
-            { label: "Imported", sub: "Autogate captured", Icon: Network, count: 6 },
-            { label: "Engaged", sub: "Two-way SMS", Icon: MessageSquare, count: 6 },
-            { label: "Qualified", sub: "Needs captured", Icon: Zap, count: 6 },
-            { label: "Committed", sub: "Test drives", Icon: CalendarDays, count: 3 },
-          ].map(({ label, sub, Icon, count }, i) => (
+          {funnelSteps.map(({ label, sub, Icon, count }, i) => (
             <FunnelStep
               key={label}
               label={label}
@@ -181,8 +229,8 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {leads.slice(0, 4).map((l) => (
-              <Prospect key={l.name + l.score} lead={l} />
+            {recentLeads.slice(0, 4).map((l) => (
+              <Prospect key={l._id} lead={l} />
             ))}
           </div>
         </div>
@@ -214,9 +262,9 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
           </div>
         </div>
       </div>
+
       {/* ── Vehicle Availability Info ── */}
       <div className="w-full bg-white border border-[#e2e2e2] rounded-xl px-4 sm:px-5 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        {/* Left Side */}
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex items-center justify-center shrink-0">
             <svg
@@ -236,13 +284,10 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
               <circle cx="17" cy="17" r="1.5" />
             </svg>
           </div>
-
           <span className="text-xs sm:text-sm text-[#46505f] truncate">
             660 vehicles available from 1052 monitored records
           </span>
         </div>
-
-        {/* Right Side */}
         <div className="text-xs sm:text-sm text-[#46505f] sm:text-right whitespace-normal sm:whitespace-nowrap">
           Inventory source: bydmelbourne.com.au · SMS: simulation-only
         </div>

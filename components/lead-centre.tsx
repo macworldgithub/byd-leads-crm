@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import { getSection } from "./lead-centre/registry";
 import {
   Dashboard,
@@ -18,8 +18,33 @@ import {
   ModalField,
   ModalActions,
 } from "./lead-centre/shared";
-import { Network, Clock, Save } from "lucide-react";
-import { dealershipDetails } from "./lead-centre/data";
+import { Network, Clock, Save, Loader2 } from "lucide-react";
+import {
+  getDealerships,
+  createDealership,
+  updateDealership,
+  type Dealership,
+} from "@/lib/api";
+
+// ── Dealership Form State ─────────────────────────────────────────────────────
+const EMPTY_DEALER: Omit<Dealership, "_id"> = {
+  name: "",
+  legalEntity: "",
+  address: "",
+  suburb: "",
+  state: "",
+  phone: "",
+  email: "",
+  timezone: "Australia/Melbourne",
+  smsSenderId: "",
+  autogateId: "",
+  autogateUsername: "",
+  autogatePassword: "",
+  weekdayHoursStart: "09:00",
+  weekdayHoursEnd: "20:00",
+  saturdayHoursStart: "09:00",
+  saturdayHoursEnd: "17:00",
+};
 
 export default function LeadCentre() {
   const [active, setActive] = useState("Dashboard");
@@ -28,13 +53,60 @@ export default function LeadCentre() {
   const [modal, setModal] = useState<
     "prospect" | "csv" | "add-dealer" | "edit-dealer" | null
   >(null);
-  const [editingDealership, setEditingDealership] = useState<string | null>(
-    null,
-  );
+  const [editingDealership, setEditingDealership] = useState<Dealership | null>(null);
+  const [dealerForm, setDealerForm] = useState<Omit<Dealership, "_id">>(EMPTY_DEALER);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Ref to trigger Settings page re-fetch after save
+  const settingsRefreshRef = useRef<(() => void) | null>(null);
+
   const close = () => {
     setModal(null);
     setEditingDealership(null);
+    setDealerForm(EMPTY_DEALER);
+    setSaveError(null);
   };
+
+  const openEdit = useCallback(async (dealershipName: string) => {
+    try {
+      const all = await getDealerships();
+      const found = all.find((d) => d.name === dealershipName);
+      if (found) {
+        setEditingDealership(found);
+        setDealerForm({ ...found } as any);
+        setModal("edit-dealer");
+      }
+    } catch (err: any) {
+      console.error("Failed to load dealership:", err.message);
+    }
+  }, []);
+
+  const handleDealerSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      if (modal === "add-dealer") {
+        await createDealership(dealerForm);
+      } else if (modal === "edit-dealer" && editingDealership) {
+        await updateDealership(editingDealership._id, dealerForm);
+      }
+      close();
+      // Trigger Settings page refresh
+      settingsRefreshRef.current?.();
+    } catch (err: any) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const field = (key: keyof Omit<Dealership, "_id">) => ({
+    value: (dealerForm as any)[key] ?? "",
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+      setDealerForm((prev) => ({ ...prev, [key]: e.target.value })),
+  });
+
   const content = useMemo(
     () =>
       (
@@ -47,17 +119,18 @@ export default function LeadCentre() {
           Compliance: <Compliance />,
           Settings: (
             <SettingsPage
-              onAdd={() => setModal("add-dealer")}
-              onEdit={(dealershipName) => {
-                setEditingDealership(dealershipName);
-                setModal("edit-dealer");
+              onAdd={() => {
+                setDealerForm(EMPTY_DEALER);
+                setModal("add-dealer");
               }}
+              onEdit={openEdit}
             />
           ),
         }) as Record<string, React.ReactNode>
       )[active],
-    [active],
+    [active, openEdit],
   );
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -72,6 +145,8 @@ export default function LeadCentre() {
         <TopBar onMenu={() => setMenu(true)} />
         <div className="content">{content}</div>
       </main>
+
+      {/* ── Add / Edit Test Prospect ── */}
       {modal === "prospect" && (
         <Modal
           title="Add Test Prospect"
@@ -102,8 +177,7 @@ export default function LeadCentre() {
               <div>
                 <b>Send opening SMS immediately</b>
                 <small>
-                  Starts the AI qualification conversation as soon as the
-                  prospect is created
+                  Starts the AI qualification conversation as soon as the prospect is created
                 </small>
               </div>
               <span className="toggle on">
@@ -114,6 +188,8 @@ export default function LeadCentre() {
           <ModalActions onClose={close} primary="Create Prospect" />
         </Modal>
       )}
+
+      {/* ── CSV Import ── */}
       {modal === "csv" && (
         <Modal
           title="Import Prospects from CSV"
@@ -132,10 +208,7 @@ export default function LeadCentre() {
           <div className="simulation">
             <div>
               <b>Send opening SMS to imported prospects</b>
-              <small>
-                Starts AI qualification for each newly imported lead
-                (simulation-safe)
-              </small>
+              <small>Starts AI qualification for each newly imported lead (simulation-safe)</small>
             </div>
             <span className="toggle">
               <i />
@@ -144,58 +217,24 @@ export default function LeadCentre() {
           <ModalActions onClose={close} primary="Import" />
         </Modal>
       )}
+
+      {/* ── Add Dealership ── */}
       {modal === "add-dealer" && (
         <Modal title="Add Dealership" onClose={close}>
           <div className="modal-form-dealer">
             <div className="dealer-fields-grid">
-              <label>
-                <span>Dealership Name</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Legal Entity Name (ACMA sender ID)</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Address</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Suburb</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>State (VIC/NSW...)</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Phone</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Email</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Timezone (IANA)</span>
-                <input defaultValue="Australia/Melbourne" />
-              </label>
-              <label>
-                <span>SMS Sender ID</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Autogate Seller ID</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Autogate Username</span>
-                <input placeholder="" />
-              </label>
-              <label>
-                <span>Autogate Password</span>
-                <input type="password" placeholder="" />
-              </label>
+              <label><span>Dealership Name</span><input {...field("name")} /></label>
+              <label><span>Legal Entity Name (ACMA sender ID)</span><input {...field("legalEntity")} /></label>
+              <label><span>Address</span><input {...field("address")} /></label>
+              <label><span>Suburb</span><input {...field("suburb")} /></label>
+              <label><span>State (VIC/NSW...)</span><input {...field("state")} /></label>
+              <label><span>Phone</span><input {...field("phone")} /></label>
+              <label><span>Email</span><input {...field("email")} /></label>
+              <label><span>Timezone (IANA)</span><input {...field("timezone")} /></label>
+              <label><span>SMS Sender ID</span><input {...field("smsSenderId")} /></label>
+              <label><span>Autogate Seller ID</span><input {...field("autogateId")} /></label>
+              <label><span>Autogate Username</span><input {...field("autogateUsername")} /></label>
+              <label><span>Autogate Password</span><input type="password" {...field("autogatePassword")} /></label>
             </div>
 
             <div className="dealer-hours-row">
@@ -203,201 +242,119 @@ export default function LeadCentre() {
                 <span className="hours-label">Weekday Contact Hours</span>
                 <div className="time-range-picker">
                   <div className="time-input-wrap">
-                    <input type="text" defaultValue="09:00" />
+                    <input type="text" {...field("weekdayHoursStart")} />
                     <Clock size={15} className="time-icon" />
                   </div>
                   <span className="time-sep">–</span>
                   <div className="time-input-wrap">
-                    <input type="text" defaultValue="08:00" />
+                    <input type="text" {...field("weekdayHoursEnd")} />
                     <Clock size={15} className="time-icon" />
                   </div>
                 </div>
               </div>
-
               <div className="hours-group">
                 <span className="hours-label">Saturday Contact Hours</span>
                 <div className="time-range-picker">
                   <div className="time-input-wrap">
-                    <input type="text" defaultValue="09:00" />
+                    <input type="text" {...field("saturdayHoursStart")} />
                     <Clock size={15} className="time-icon" />
                   </div>
                   <span className="time-sep">–</span>
                   <div className="time-input-wrap">
-                    <input type="text" defaultValue="05:00" />
+                    <input type="text" {...field("saturdayHoursEnd")} />
                     <Clock size={15} className="time-icon" />
                   </div>
                 </div>
               </div>
             </div>
+
+            {saveError && (
+              <p style={{ color: "#cf1d29", fontSize: "13px", marginTop: "8px" }}>{saveError}</p>
+            )}
 
             <div className="dealer-submit-wrap">
               <button
                 type="button"
                 className="dealer-submit-btn"
-                onClick={close}
+                onClick={handleDealerSave}
+                disabled={saving}
               >
-                <Save size={16} />
-                <span>Add Dealership</span>
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>{saving ? "Saving..." : "Add Dealership"}</span>
               </button>
             </div>
           </div>
         </Modal>
       )}
-      {modal === "edit-dealer" &&
-        editingDealership &&
-        dealershipDetails[editingDealership] && (
-          <Modal title={`Edit ${editingDealership}`} onClose={close}>
-            <div className="modal-form-dealer">
-              <div className="dealer-fields-grid">
-                <label>
-                  <span>Dealership Name</span>
-                  <input
-                    defaultValue={dealershipDetails[editingDealership].name}
-                  />
-                </label>
-                <label>
-                  <span>Legal Entity Name (ACMA sender ID)</span>
-                  <input
-                    defaultValue={
-                      dealershipDetails[editingDealership].legalEntity
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Address</span>
-                  <input
-                    defaultValue={dealershipDetails[editingDealership].address}
-                  />
-                </label>
-                <label>
-                  <span>Suburb</span>
-                  <input
-                    defaultValue={dealershipDetails[editingDealership].suburb}
-                  />
-                </label>
-                <label>
-                  <span>State (VIC/NSW...)</span>
-                  <input
-                    defaultValue={dealershipDetails[editingDealership].state}
-                  />
-                </label>
-                <label>
-                  <span>Phone</span>
-                  <input
-                    defaultValue={dealershipDetails[editingDealership].phone}
-                  />
-                </label>
-                <label>
-                  <span>Email</span>
-                  <input
-                    defaultValue={dealershipDetails[editingDealership].email}
-                  />
-                </label>
-                <label>
-                  <span>Timezone (IANA)</span>
-                  <input
-                    defaultValue={dealershipDetails[editingDealership].timezone}
-                  />
-                </label>
-                <label>
-                  <span>SMS Sender ID</span>
-                  <input
-                    defaultValue={
-                      dealershipDetails[editingDealership].smsSenderId
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Autogate Seller ID</span>
-                  <input
-                    defaultValue={
-                      dealershipDetails[editingDealership].autogateId
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Autogate Username</span>
-                  <input
-                    defaultValue={
-                      dealershipDetails[editingDealership].autogateUsername
-                    }
-                  />
-                </label>
-                <label>
-                  <span>Autogate Password</span>
-                  <input defaultValue="•••••••• (unchanged)" disabled />
-                </label>
-              </div>
 
-              <div className="dealer-hours-row">
-                <div className="hours-group">
-                  <span className="hours-label">Weekday Contact Hours</span>
-                  <div className="time-range-picker">
-                    <div className="time-input-wrap">
-                      <input
-                        type="text"
-                        defaultValue={
-                          dealershipDetails[editingDealership]
-                            .weekdayHoursStart || "09:00"
-                        }
-                      />
-                      <Clock size={15} className="time-icon" />
-                    </div>
-                    <span className="time-sep">–</span>
-                    <div className="time-input-wrap">
-                      <input
-                        type="text"
-                        defaultValue={
-                          dealershipDetails[editingDealership]
-                            .weekdayHoursEnd || "08:00"
-                        }
-                      />
-                      <Clock size={15} className="time-icon" />
-                    </div>
+      {/* ── Edit Dealership ── */}
+      {modal === "edit-dealer" && editingDealership && (
+        <Modal title={`Edit ${editingDealership.name}`} onClose={close}>
+          <div className="modal-form-dealer">
+            <div className="dealer-fields-grid">
+              <label><span>Dealership Name</span><input {...field("name")} /></label>
+              <label><span>Legal Entity Name (ACMA sender ID)</span><input {...field("legalEntity")} /></label>
+              <label><span>Address</span><input {...field("address")} /></label>
+              <label><span>Suburb</span><input {...field("suburb")} /></label>
+              <label><span>State (VIC/NSW...)</span><input {...field("state")} /></label>
+              <label><span>Phone</span><input {...field("phone")} /></label>
+              <label><span>Email</span><input {...field("email")} /></label>
+              <label><span>Timezone (IANA)</span><input {...field("timezone")} /></label>
+              <label><span>SMS Sender ID</span><input {...field("smsSenderId")} /></label>
+              <label><span>Autogate Seller ID</span><input {...field("autogateId")} /></label>
+              <label><span>Autogate Username</span><input {...field("autogateUsername")} /></label>
+              <label><span>Autogate Password</span><input defaultValue="•••••••• (unchanged)" disabled /></label>
+            </div>
+
+            <div className="dealer-hours-row">
+              <div className="hours-group">
+                <span className="hours-label">Weekday Contact Hours</span>
+                <div className="time-range-picker">
+                  <div className="time-input-wrap">
+                    <input type="text" {...field("weekdayHoursStart")} />
+                    <Clock size={15} className="time-icon" />
                   </div>
-                </div>
-
-                <div className="hours-group">
-                  <span className="hours-label">Saturday Contact Hours</span>
-                  <div className="time-range-picker">
-                    <div className="time-input-wrap">
-                      <input
-                        type="text"
-                        defaultValue={
-                          dealershipDetails[editingDealership]
-                            .saturdayHoursStart || "09:00"
-                        }
-                      />
-                      <Clock size={15} className="time-icon" />
-                    </div>
-                    <span className="time-sep">–</span>
-                    <div className="time-input-wrap">
-                      <input
-                        type="text"
-                        defaultValue={
-                          dealershipDetails[editingDealership]
-                            .saturdayHoursEnd || "05:00"
-                        }
-                      />
-                      <Clock size={15} className="time-icon" />
-                    </div>
+                  <span className="time-sep">–</span>
+                  <div className="time-input-wrap">
+                    <input type="text" {...field("weekdayHoursEnd")} />
+                    <Clock size={15} className="time-icon" />
                   </div>
                 </div>
               </div>
-
-              <div className="dealer-submit-wrap">
-                <button
-                  type="button"
-                  className="dealer-submit-btn"
-                  onClick={close}
-                >
-                  <Save size={16} />
-                  <span>Update Dealership</span>
-                </button>
+              <div className="hours-group">
+                <span className="hours-label">Saturday Contact Hours</span>
+                <div className="time-range-picker">
+                  <div className="time-input-wrap">
+                    <input type="text" {...field("saturdayHoursStart")} />
+                    <Clock size={15} className="time-icon" />
+                  </div>
+                  <span className="time-sep">–</span>
+                  <div className="time-input-wrap">
+                    <input type="text" {...field("saturdayHoursEnd")} />
+                    <Clock size={15} className="time-icon" />
+                  </div>
+                </div>
               </div>
             </div>
-          </Modal>
-        )}
+
+            {saveError && (
+              <p style={{ color: "#cf1d29", fontSize: "13px", marginTop: "8px" }}>{saveError}</p>
+            )}
+
+            <div className="dealer-submit-wrap">
+              <button
+                type="button"
+                className="dealer-submit-btn"
+                onClick={handleDealerSave}
+                disabled={saving}
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                <span>{saving ? "Saving..." : "Update Dealership"}</span>
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

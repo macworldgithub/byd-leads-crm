@@ -7,18 +7,60 @@ import {
   Plus,
   Smartphone,
   Warehouse,
-  Clock,
   Zap,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import { Card, Button, Pill, PageHeader, Icon } from "../shared";
+import { getDealerships, deleteDealership, type Dealership } from "@/lib/api";
+import { useState, useEffect } from "react";
 
 export function SettingsPage({
   onAdd,
   onEdit,
+  onRefresh,
 }: {
   onAdd: () => void;
   onEdit?: (dealershipName: string) => void;
+  onRefresh?: () => void;
 }) {
+  const [dealerships, setDealerships] = useState<Dealership[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchDealerships = () => {
+    setLoading(true);
+    getDealerships()
+      .then(setDealerships)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchDealerships();
+  }, []);
+
+  // Expose refresh so parent can call after add/edit
+  useEffect(() => {
+    if (onRefresh) {
+      // Nothing — parent calls fetchDealerships via the ref pattern below
+    }
+  }, [onRefresh]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this dealership?")) return;
+    setDeletingId(id);
+    try {
+      await deleteDealership(id);
+      setDealerships((prev) => prev.filter((d) => d._id !== id));
+    } catch (err: any) {
+      alert("Failed to delete: " + err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -35,47 +77,71 @@ export function SettingsPage({
               gap: "8px",
             }}
           >
-            <Warehouse size={17} style={{ color: "var(--red)" }} /> Dealership
-            Locations
+            <Warehouse size={17} style={{ color: "var(--red)" }} /> Dealership Locations
           </h2>
           <Button primary onClick={onAdd}>
             <Plus size={12} /> Add
           </Button>
           <div className="locations">
-            {[
-              [
-                "BYD Fairfield",
-                "NSW",
-                "Australia/Sydney",
-                "72-74 Grand Avenue, Camellia NSW 2142 · SMS: BYDFairfield",
-              ],
-              [
-                "BYD Fairfield VIC",
-                "VIC",
-                "Australia/Melbourne",
-                "96 Grange Road, Fairfield VIC 3078 · SMS: BYDFldVIC",
-              ],
-              [
-                "BYD Melbourne City",
-                "VIC",
-                "Australia/Melbourne",
-                "435 Williamstown Road, Port Melbourne VIC 3207 · SMS: BYDMelb",
-              ],
-            ].map((r) => (
-              <div className="location" key={r[0]}>
-                <div>
-                  <b>{r[0]}</b> <Pill>{r[1]}</Pill> <Pill>{r[2]}</Pill>
-                  <p>
-                    {r[3]} · Contact hours 09:00–20:00 wk / 09:00–17:00 Sat
-                    <br />
-                    <small>Autogate: not connected</small>
-                  </p>
-                </div>
-                <Button onClick={() => onEdit?.(r[0] as string)}>
-                  <Pencil size={14} /> Edit
-                </Button>
+            {loading && (
+              <div className="flex items-center justify-center py-8 text-[#657083]">
+                <Loader2 size={18} className="animate-spin mr-2" /> Loading dealerships...
               </div>
-            ))}
+            )}
+            {error && (
+              <div className="text-center py-6 text-red-500 text-sm">
+                Failed to load dealerships: {error}
+              </div>
+            )}
+            {!loading && !error && dealerships.length === 0 && (
+              <div className="text-center py-8 text-[#657083] text-sm">
+                No dealerships yet. Click Add to create one.
+              </div>
+            )}
+            {!loading &&
+              !error &&
+              dealerships.map((d) => (
+                <div className="location" key={d._id}>
+                  <div>
+                    <b>{d.name}</b>{" "}
+                    <Pill>{d.state}</Pill>{" "}
+                    <Pill>{d.timezone}</Pill>
+                    <p>
+                      {d.address}, {d.suburb} {d.state} · SMS: {d.smsSenderId}
+                      {" "}· Contact hours {d.weekdayHoursStart}–{d.weekdayHoursEnd} wk / {d.saturdayHoursStart}–{d.saturdayHoursEnd} Sat
+                      <br />
+                      <small>Autogate: {d.autogateId ? d.autogateId : "not connected"}</small>
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <Button onClick={() => onEdit?.(d.name)}>
+                      <Pencil size={14} /> Edit
+                    </Button>
+                    <button
+                      onClick={() => handleDelete(d._id)}
+                      disabled={deletingId === d._id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "6px 10px",
+                        border: "1px solid #e2e2e2",
+                        borderRadius: "8px",
+                        background: "white",
+                        cursor: "pointer",
+                        color: "#cf1d29",
+                        fontSize: "13px",
+                      }}
+                    >
+                      {deletingId === d._id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
           </div>
         </Card>
       </div>
@@ -89,8 +155,7 @@ export function SettingsPage({
               gap: "8px",
             }}
           >
-            <Smartphone size={17} style={{ color: "var(--red)" }} /> Mobile
-            Message API (Two-Way SMS)
+            <Smartphone size={17} style={{ color: "var(--red)" }} /> Mobile Message API (Two-Way SMS)
           </h2>
           <div className="form-grid">
             <label>
@@ -112,8 +177,7 @@ export function SettingsPage({
             <div>
               <b>Simulation Mode</b>
               <small>
-                When on, SMS are logged in the portal but not physically
-                delivered — ideal for demos.
+                When on, SMS are logged in the portal but not physically delivered — ideal for demos.
               </small>
             </div>
             <span className="toggle on">
@@ -132,17 +196,14 @@ export function SettingsPage({
               gap: "8px",
             }}
           >
-            <Network size={17} style={{ color: "var(--red)" }} /> Autogate
-            Connection
+            <Network size={17} style={{ color: "var(--red)" }} /> Autogate Connection
           </h2>
           <p>
-            Autogate credentials are stored per dealership (see location cards
-            above). The scanner attempts credential-based portal access; where
-            carsales blocks automated logins, it uses the structured lead feed
-            matching the carsales lead model. For production-grade delivery,
-            request LeadDriver / lead-forwarding activation from your carsales
-            account manager, which posts leads directly to this platform's
-            webhook: <code>/api/webhooks/autogate</code>
+            Autogate credentials are stored per dealership (see location cards above). The scanner
+            attempts credential-based portal access; where carsales blocks automated logins, it uses
+            the structured lead feed matching the carsales lead model. For production-grade delivery,
+            request LeadDriver / lead-forwarding activation from your carsales account manager, which
+            posts leads directly to this platform's webhook: <code>/api/webhooks/autogate</code>
           </p>
         </Card>
       </div>
@@ -156,8 +217,7 @@ export function SettingsPage({
               gap: "8px",
             }}
           >
-            <Zap size={17} style={{ color: "var(--red)" }} /> Automation
-            Schedules
+            <Zap size={17} style={{ color: "var(--red)" }} /> Automation Schedules
           </h2>
           <div className="schedules-list">
             {[
@@ -190,9 +250,8 @@ export function SettingsPage({
             <Zap size={15} /> Enable Automation Schedules
           </Button>
           <small style={{ display: "block", marginTop: "12px", color: "#666" }}>
-            Schedules run in the background even when no one is signed in.
-            Manage or run them manually from the project dashboard's Schedules
-            panel.
+            Schedules run in the background even when no one is signed in. Manage or run them
+            manually from the project dashboard's Schedules panel.
           </small>
         </Card>
       </div>

@@ -1,28 +1,29 @@
 "use client";
 
-import { MessageSquare, Bot, Activity, Search } from "lucide-react";
+import { MessageSquare, Bot, Activity, Search, Loader2 } from "lucide-react";
 import { Pill } from "../shared";
-import { conversations } from "../data";
-import { useState } from "react";
-
-const INITIALS = ["CP", "CP", "AT", "DK", "SP", "CP"];
-const PHONES   = [204, 203, 202, 201, 200, 199];
-const MSGS     = [7, 5, 9, 12, 6, 8];
-
-const LAST_MSG = [
-  "Confirmed — I'll call at 3:30pm today. I've kept stock linked to your enquiry.",
-  "Of course — I'll keep the enquiry active and monitor availability.",
-  "Confirmed — I'll call at 3:30pm today. I've kept stock linked to your enquiry.",
-  "Of course — I'll keep the enquiry active and monitor availability.",
-  "Confirmed — I'll call at 3:30pm today. I've kept stock linked to your enquiry.",
-  "Of course — I'll keep the enquiry active and monitor availability.",
-];
+import { getConversations, type Conversation } from "@/lib/api";
+import { useState, useEffect } from "react";
 
 type Filter = "all" | "ai" | "human";
 
 export function Conversations() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const params: Record<string, string> = {};
+    if (filter !== "all") params.control = filter;
+    if (search) params.q = search;
+    getConversations(params)
+      .then(setConversations)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [filter, search]);
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
@@ -35,7 +36,6 @@ export function Conversations() {
           </p>
         </div>
 
-        {/* Filter segmented control */}
         <div className="flex rounded-lg overflow-hidden border border-[#e2e2e2] self-start shrink-0">
           {(
             [
@@ -71,52 +71,63 @@ export function Conversations() {
         />
       </div>
 
+      {loading && (
+        <div className="flex items-center justify-center h-40 text-[#657083]">
+          <Loader2 size={20} className="animate-spin mr-2" /> Loading conversations...
+        </div>
+      )}
+
+      {error && (
+        <div className="text-center py-10 text-red-500 text-sm">
+          Failed to load conversations: {error}
+        </div>
+      )}
+
       {/* ── Conversation List ── */}
-      <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden">
-        {conversations.map((x, i) => (
-          <div
-            key={x + i}
-            className="flex flex-col sm:flex-row sm:items-start gap-3 px-4 py-4 border-b border-[#e2e2e2] last:border-0 hover:bg-[#fafafa] transition-colors"
-          >
-            {/* Avatar */}
-            <div className="w-10 h-10 rounded-full bg-[#f0f0f0] flex items-center justify-center text-xs font-bold text-[#444] shrink-0">
-              {INITIALS[i] ?? "CP"}
-            </div>
+      {!loading && !error && (
+        <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden">
+          {conversations.length === 0 ? (
+            <div className="text-center py-16 text-[#657083] text-sm">No conversations found.</div>
+          ) : (
+            conversations.map((c) => (
+              <div
+                key={c._id}
+                className="flex flex-col sm:flex-row sm:items-start gap-3 px-4 py-4 border-b border-[#e2e2e2] last:border-0 hover:bg-[#fafafa] transition-colors"
+              >
+                {/* Avatar */}
+                <div className="w-10 h-10 rounded-full bg-[#f0f0f0] flex items-center justify-center text-xs font-bold text-[#444] shrink-0">
+                  {c.initials || c.prospectName.slice(0, 2).toUpperCase()}
+                </div>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              {/* Name + pills */}
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <b className="text-sm font-semibold">{x}</b>
-                <Pill tone={i > 1 ? "purple" : "amber"}>
-                  {i > 1 ? "Commitment" : "Contact"}
-                </Pill>
-                <Pill tone="teal">
-                  {i === 0 ? "Human: Rowland Godfrey" : "AI active"}
-                </Pill>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <b className="text-sm font-semibold">{c.prospectName}</b>
+                    <Pill tone={c.status === "Commitment" ? "purple" : "amber"}>{c.status}</Pill>
+                    <Pill tone={c.control.toLowerCase().includes("human") ? "amber" : "teal"}>
+                      {c.control}
+                    </Pill>
+                  </div>
+                  <p className="text-sm text-[#555] leading-snug line-clamp-2">
+                    → {c.lastMessage}
+                  </p>
+                  <div className="flex items-center gap-3 mt-2 sm:hidden">
+                    <span className="text-xs text-[#657083]">{c.phone}</span>
+                    <span className="text-xs text-[#657083]">{c.daysAgo}d ago</span>
+                    <span className="text-xs text-[#657083]">{c.msgCount} msgs</span>
+                  </div>
+                </div>
+
+                {/* Desktop meta */}
+                <div className="hidden sm:flex flex-col items-end shrink-0 text-right gap-0.5">
+                  <span className="text-xs font-medium text-[#333]">{c.phone}</span>
+                  <small className="text-xs text-[#657083]">{c.daysAgo}d ago · {c.msgCount} msgs</small>
+                </div>
               </div>
-
-              {/* Last message */}
-              <p className="text-sm text-[#555] leading-snug line-clamp-2">
-                → {LAST_MSG[i]}
-              </p>
-
-              {/* Mobile-only meta */}
-              <div className="flex items-center gap-3 mt-2 sm:hidden">
-                <span className="text-xs text-[#657083]">0491 570 {PHONES[i]}</span>
-                <span className="text-xs text-[#657083]">{4 + i}d ago</span>
-                <span className="text-xs text-[#657083]">{MSGS[i]} msgs</span>
-              </div>
-            </div>
-
-            {/* Desktop-only right meta */}
-            <div className="hidden sm:flex flex-col items-end shrink-0 text-right gap-0.5">
-              <span className="text-xs font-medium text-[#333]">0491 570 {PHONES[i]}</span>
-              <small className="text-xs text-[#657083]">{4 + i}d ago · {MSGS[i]} msgs</small>
-            </div>
-          </div>
-        ))}
-      </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
