@@ -17,17 +17,32 @@ export function Button({
   children,
   primary = false,
   onClick,
+  disabled = false,
+  style,
+  className = "",
 }: {
   children: ReactNode;
   primary?: boolean;
   onClick?: () => void;
+  disabled?: boolean;
+  style?: React.CSSProperties;
+  className?: string;
 }) {
   return (
-    <button onClick={onClick} className={primary ? "btn btn-primary" : "btn"}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        ...style,
+        ...(disabled ? { opacity: 0.6, cursor: "not-allowed" } : {}),
+      }}
+      className={`${primary ? "btn btn-primary" : "btn"} ${className}`.trim()}
+    >
       {children}
     </button>
   );
 }
+
 
 export function Pill({
   children,

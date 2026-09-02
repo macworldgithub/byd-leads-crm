@@ -152,3 +152,39 @@ export const updateAppointment = (id: string, data: Partial<Appointment>) =>
     method: "PUT",
     body: JSON.stringify(data),
   });
+
+// ── SMS Settings ─────────────────────────────────────────────────────────────
+export interface SmsSettings {
+  _id?: string;
+  key?: string;
+  username: string;
+  apiKey: string;
+  simulationMode: boolean;
+  senderId?: string;
+  connectionStatus?: "untested" | "connected" | "failed";
+  lastTestedAt?: string | null;
+  connectionMessage?: string;
+}
+
+export interface SmsTestResult {
+  success: boolean;
+  connectionStatus: "connected" | "failed";
+  message: string;
+  testedAt: string;
+  data?: SmsSettings;
+}
+
+export const getSmsSettings = () => request<SmsSettings>("/settings/sms");
+
+export const saveSmsSettings = (data: Partial<SmsSettings>) =>
+  request<{ success: boolean; message: string; data: SmsSettings }>("/settings/sms", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+export const testSmsConnection = (data?: Partial<SmsSettings>) =>
+  request<SmsTestResult>("/settings/sms/test", {
+    method: "POST",
+    body: JSON.stringify(data || {}),
+  });
+

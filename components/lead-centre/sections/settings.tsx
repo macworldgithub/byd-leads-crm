@@ -10,9 +10,22 @@ import {
   Zap,
   Loader2,
   Trash2,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  Clock,
 } from "lucide-react";
-import { Card, Button, Pill, PageHeader, Icon } from "../shared";
-import { getDealerships, deleteDealership, type Dealership } from "@/lib/api";
+import { Card, Button, Pill, PageHeader } from "../shared";
+import {
+  getDealerships,
+  deleteDealership,
+  getSmsSettings,
+  saveSmsSettings,
+  testSmsConnection,
+  type Dealership,
+  type SmsSettings,
+} from "@/lib/api";
 import { useState, useEffect } from "react";
 
 export function SettingsPage({
@@ -29,6 +42,21 @@ export function SettingsPage({
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // ── SMS Configuration State (Not auto-fetched on page load) ─────────────
+  const [smsUsername, setSmsUsername] = useState("");
+  const [smsApiKey, setSmsApiKey] = useState("");
+  const [simulationMode, setSimulationMode] = useState(true);
+  const [smsConnectionStatus, setSmsConnectionStatus] = useState<"untested" | "connected" | "failed">("untested");
+  const [lastTestedAt, setLastTestedAt] = useState<string | null>(null);
+  const [connectionMessage, setConnectionMessage] = useState("");
+  const [savingSms, setSavingSms] = useState(false);
+  const [testingSms, setTestingSms] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [smsFeedback, setSmsFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
   const fetchDealerships = () => {
     setLoading(true);
     getDealerships()
@@ -41,12 +69,92 @@ export function SettingsPage({
     fetchDealerships();
   }, []);
 
-  // Expose refresh so parent can call after add/edit
-  useEffect(() => {
-    if (onRefresh) {
-      // Nothing — parent calls fetchDealerships via the ref pattern below
+  const handleSaveCredentials = async () => {
+    setSavingSms(true);
+    setSmsFeedback(null);
+    try {
+      const res = await saveSmsSettings({
+        username: smsUsername,
+        apiKey: smsApiKey,
+        simulationMode,
+      });
+      setSmsFeedback({
+        type: "success",
+        message: res.message || "SMS credentials saved successfully!",
+      });
+    } catch (err: any) {
+      setSmsFeedback({
+        type: "error",
+        message: err.message || "Failed to save credentials",
+      });
+    } finally {
+      setSavingSms(false);
     }
-  }, [onRefresh]);
+  };
+
+  const handleToggleSimulation = async () => {
+    if (savingSms || testingSms) return;
+    const newMode = !simulationMode;
+    setSimulationMode(newMode);
+    setSavingSms(true);
+    setSmsFeedback(null);
+    try {
+      const res = await saveSmsSettings({
+        simulationMode: newMode,
+        ...(smsUsername.trim() ? { username: smsUsername.trim() } : {}),
+        ...(smsApiKey.trim() ? { apiKey: smsApiKey.trim() } : {}),
+      });
+      setSmsFeedback({
+        type: "success",
+        message:
+          res.message ||
+          `Simulation Mode ${newMode ? "enabled" : "disabled"} successfully!`,
+      });
+    } catch (err: any) {
+      setSimulationMode(!newMode); // Revert on failure
+      setSmsFeedback({
+        type: "error",
+        message: "Failed to update Simulation Mode: " + (err.message || "Request failed"),
+      });
+    } finally {
+      setSavingSms(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!smsUsername.trim() || !smsApiKey.trim()) {
+      setSmsFeedback({
+        type: "error",
+        message: "Please enter both Username and API Key before testing the connection.",
+      });
+      return;
+    }
+
+    setTestingSms(true);
+    setSmsFeedback(null);
+    try {
+      const res = await testSmsConnection({
+        username: smsUsername,
+        apiKey: smsApiKey,
+        simulationMode,
+      });
+      setSmsConnectionStatus(res.connectionStatus);
+      setLastTestedAt(res.testedAt);
+      setConnectionMessage(res.message);
+      setSmsFeedback({
+        type: "success",
+        message: res.message,
+      });
+    } catch (err: any) {
+      setSmsConnectionStatus("failed");
+      setSmsFeedback({
+        type: "error",
+        message: err.message || "SMS API connection test failed.",
+      });
+    } finally {
+      setTestingSms(false);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this dealership?")) return;
@@ -145,42 +253,181 @@ export function SettingsPage({
           </div>
         </Card>
       </div>
+
       <div style={{ marginBottom: "20px" }}>
         <Card className="sms">
-          <h2
-            style={{
-              fontWeight: "bold",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <Smartphone size={17} style={{ color: "var(--red)" }} /> Mobile Message API (Two-Way SMS)
-          </h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+            <h2
+              style={{
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                margin: 0,
+              }}
+            >
+              <Smartphone size={17} style={{ color: "var(--red)" }} /> Mobile Message API (Two-Way SMS)
+            </h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {smsConnectionStatus === "connected" && (
+                <Pill tone="green">● Connected</Pill>
+              )}
+              {smsConnectionStatus === "failed" && (
+                <Pill tone="amber">● Connection Failed</Pill>
+              )}
+              {smsConnectionStatus === "untested" && (
+                <Pill tone="gray">Untested</Pill>
+              )}
+            </div>
+          </div>
+
+          {smsFeedback && (
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "10px 14px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "8px",
+                background: smsFeedback.type === "success" ? "#f0fdf4" : "#fef2f2",
+                border: smsFeedback.type === "success" ? "1px solid #bbf7d0" : "1px solid #fecaca",
+                color: smsFeedback.type === "success" ? "#166534" : "#991b1b",
+              }}
+            >
+              {smsFeedback.type === "success" ? (
+                <CheckCircle2 size={16} style={{ marginTop: "2px", flexShrink: 0 }} />
+              ) : (
+                <AlertCircle size={16} style={{ marginTop: "2px", flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1 }}>{smsFeedback.message}</div>
+              <button
+                onClick={() => setSmsFeedback(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  color: "inherit",
+                  opacity: 0.7,
+                  padding: "0 4px",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <div className="form-grid">
             <label>
               Username
-              <input placeholder="e.g. gSFclk" />
+              <input
+                placeholder="e.g. gSFclk"
+                value={smsUsername}
+                onChange={(e) => setSmsUsername(e.target.value)}
+                disabled={savingSms || testingSms}
+              />
             </label>
             <label>
               API Key
-              <input placeholder="API key" />
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <input
+                  type={showApiKey ? "text" : "password"}
+                  placeholder="API key"
+                  value={smsApiKey}
+                  onChange={(e) => setSmsApiKey(e.target.value)}
+                  disabled={savingSms || testingSms}
+                  style={{ width: "100%", paddingRight: "36px" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#888",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                  title={showApiKey ? "Hide API Key" : "Show API Key"}
+                >
+                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </label>
           </div>
-          <Button>
-            <FileCheck2 size={15} /> Save Credentials
-          </Button>{" "}
-          <Button primary>
-            <Network size={15} /> Test Connection
-          </Button>
-          <div className="simulation">
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <Button
+              onClick={handleSaveCredentials}
+              disabled={savingSms || testingSms}
+            >
+              {savingSms ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" /> Saving...
+                </>
+              ) : (
+                <>
+                  <FileCheck2 size={15} /> Save Credentials
+                </>
+              )}
+            </Button>
+            <Button
+              primary
+              onClick={handleTestConnection}
+              disabled={savingSms || testingSms}
+            >
+              {testingSms ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" /> Testing Connection...
+                </>
+              ) : (
+                <>
+                  <Network size={15} /> Test Connection
+                </>
+              )}
+            </Button>
+          </div>
+
+          {lastTestedAt && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginTop: "12px",
+                fontSize: "12px",
+                color: "var(--muted)",
+              }}
+            >
+              <Clock size={13} />
+              <span>
+                Last tested: {new Date(lastTestedAt).toLocaleString()}
+                {connectionMessage ? ` · ${connectionMessage}` : ""}
+              </span>
+            </div>
+          )}
+
+          <div
+            className="simulation"
+            style={{
+              cursor: savingSms || testingSms ? "not-allowed" : "pointer",
+              userSelect: "none",
+              opacity: savingSms ? 0.75 : 1,
+            }}
+            onClick={handleToggleSimulation}
+          >
             <div>
               <b>Simulation Mode</b>
               <small>
                 When on, SMS are logged in the portal but not physically delivered — ideal for demos.
               </small>
             </div>
-            <span className="toggle on">
+            <span className={`toggle ${simulationMode ? "on" : ""}`}>
               <i />
             </span>
           </div>
