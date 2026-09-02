@@ -142,12 +142,16 @@ export function ModalField({
   placeholder,
   wide = false,
   defaultValue,
+  value,
+  onChange,
   disabled = false,
 }: {
   label: string;
   placeholder?: string;
   wide?: boolean;
   defaultValue?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
 }) {
   return (
@@ -156,6 +160,8 @@ export function ModalField({
       <input
         placeholder={placeholder}
         defaultValue={defaultValue}
+        value={value}
+        onChange={onChange}
         disabled={disabled}
       />
     </label>
@@ -164,15 +170,23 @@ export function ModalField({
 
 export function ModalActions({
   onClose,
+  onPrimary,
   primary = "Save",
+  disabled = false,
 }: {
   onClose: () => void;
+  onPrimary?: () => void;
   primary?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="modal-actions">
       <Button onClick={onClose}>Cancel</Button>
-      <Button primary onClick={onClose}>
+      <Button
+        primary
+        onClick={onPrimary ?? onClose}
+        disabled={disabled}
+      >
         {primary}
       </Button>
     </div>
@@ -183,10 +197,20 @@ export function Icon({ icon: I, size = 17 }: { icon: any; size?: number }) {
   return <I size={size} strokeWidth={1.8} />;
 }
 
-export function Prospect({ lead }: { lead: any }) {
+export function Prospect({
+  lead,
+  onClick,
+}: {
+  lead: any;
+  onClick?: () => void;
+}) {
   const { Bot } = require("lucide-react");
   return (
-    <div className={`prospect ${lead.color}`}>
+    <div
+      className={`prospect ${lead.color}`}
+      onClick={onClick}
+      style={{ cursor: onClick ? "pointer" : "default" }}
+    >
       <div className="prospect-head">
         <b>{lead.name}</b>
         <Pill tone={lead.tag === "Commitment" ? "purple" : "amber"}>

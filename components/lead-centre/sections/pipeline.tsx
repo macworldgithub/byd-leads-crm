@@ -68,8 +68,10 @@ const CONTROL_TONES: Record<string, string> = {
 
 export function Pipeline({
   onModal,
+  onSelectProspect,
 }: {
   onModal: (type: "prospect" | "csv") => void;
+  onSelectProspect?: (prospect: any) => void;
 }) {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -320,7 +322,25 @@ export function Pipeline({
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {stageLeads.map((l) => <Prospect key={l._id} lead={l} />)}
+                    {stageLeads.map((l) => (
+                      <Prospect
+                        key={l._id}
+                        lead={l}
+                        onClick={() =>
+                          onSelectProspect?.({
+                            id: l.stockNum ? `ID-${l.stockNum}` : l._id,
+                            firstName: l.name.split(" ")[0] || l.name,
+                            lastName: l.name.split(" ").slice(1).join(" ") || "",
+                            phone: l.phone,
+                            dealership: l.dealer,
+                            vehicle: l.vehicle,
+                            stockNum: l.stockNum,
+                            stage: l.stage,
+                            status: l.control,
+                          })
+                        }
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -335,7 +355,23 @@ export function Pipeline({
           {/* Mobile card layout */}
           <div className="sm:hidden divide-y divide-[#e2e2e2]">
             {leads.map((l) => (
-              <div key={l._id} className="p-4 flex flex-col gap-2">
+              <div
+                key={l._id}
+                className="p-4 flex flex-col gap-2 hover:bg-[#f9f9f9] cursor-pointer transition-colors"
+                onClick={() =>
+                  onSelectProspect?.({
+                    id: l.stockNum ? `ID-${l.stockNum}` : l._id,
+                    firstName: l.name.split(" ")[0] || l.name,
+                    lastName: l.name.split(" ").slice(1).join(" ") || "",
+                    phone: l.phone,
+                    dealership: l.dealer,
+                    vehicle: l.vehicle,
+                    stockNum: l.stockNum,
+                    stage: l.stage,
+                    status: l.control,
+                  })
+                }
+              >
                 <div className="flex justify-between items-start">
                   <div>
                     <b className="block text-sm font-semibold">{l.name}</b>
@@ -369,7 +405,23 @@ export function Pipeline({
               </thead>
               <tbody>
                 {leads.map((l) => (
-                  <tr key={l._id} className="hover:bg-[#f9f9f9] transition-colors">
+                  <tr
+                    key={l._id}
+                    onClick={() =>
+                      onSelectProspect?.({
+                        id: l.stockNum ? `ID-${l.stockNum}` : l._id,
+                        firstName: l.name.split(" ")[0] || l.name,
+                        lastName: l.name.split(" ").slice(1).join(" ") || "",
+                        phone: l.phone,
+                        dealership: l.dealer,
+                        vehicle: l.vehicle,
+                        stockNum: l.stockNum,
+                        stage: l.stage,
+                        status: l.control,
+                      })
+                    }
+                    className="hover:bg-[#f9f9f9] cursor-pointer transition-colors"
+                  >
                     <td className="px-4 py-3 border-b border-[#e2e2e2]">
                       <b className="block text-sm font-semibold">{l.name}</b>
                       <small className="text-xs text-[#657083]">{l.phone}</small>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useRef, useCallback } from "react";
-import { getSection } from "./lead-centre/registry";
 import {
   Dashboard,
   Pipeline,
@@ -10,6 +9,7 @@ import {
   Appointments,
   Compliance,
   SettingsPage,
+  ProspectDetail,
 } from "./lead-centre/sections";
 import {
   Sidebar,
@@ -46,6 +46,19 @@ const EMPTY_DEALER: Omit<Dealership, "_id"> = {
   saturdayHoursEnd: "17:00",
 };
 
+// ── Prospect Form State ───────────────────────────────────────────────────────
+const EMPTY_PROSPECT = {
+  firstName: "muhammad",
+  lastName: "Ahmed",
+  phone: "0412 345 678",
+  email: "muhammad@example.com",
+  dealership: "BYD Fairfield VIC",
+  vehicle: "2025 BYD ATTO 1",
+  enquiryDesc: "2025 BYD ATTO 1 with BYD Fairfield VIC",
+  enquiryNote: "Manually added test prospect",
+  sendSms: true,
+};
+
 export default function LeadCentre() {
   const [active, setActive] = useState("Dashboard");
   const [menu, setMenu] = useState(false);
@@ -55,6 +68,8 @@ export default function LeadCentre() {
   >(null);
   const [editingDealership, setEditingDealership] = useState<Dealership | null>(null);
   const [dealerForm, setDealerForm] = useState<Omit<Dealership, "_id">>(EMPTY_DEALER);
+  const [prospectForm, setProspectForm] = useState(EMPTY_PROSPECT);
+  const [selectedProspect, setSelectedProspect] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -101,41 +116,79 @@ export default function LeadCentre() {
     }
   };
 
+  const handleProspectCreate = () => {
+    const newProspect = {
+      id: `MANUAL-${Date.now()}`,
+      firstName: prospectForm.firstName || "muhammad",
+      lastName: prospectForm.lastName || "Ahmed",
+      phone: prospectForm.phone || "0412 345 678",
+      email: prospectForm.email || "muhammad@example.com",
+      dealership: prospectForm.dealership || "BYD Fairfield VIC",
+      vehicle: prospectForm.vehicle || "2025 BYD ATTO 1",
+      enquiryDesc: prospectForm.enquiryDesc || "2025 BYD ATTO 1 with BYD Fairfield VIC",
+      enquiryNote: prospectForm.enquiryNote || "Manually added test prospect",
+      sendSms: prospectForm.sendSms,
+      stage: "Contact",
+      status: "AI active",
+      color: "Apricity White",
+      stockNum: "6944",
+      price: "$23,990",
+    };
+
+    close();
+    setSelectedProspect(newProspect);
+  };
+
   const field = (key: keyof Omit<Dealership, "_id">) => ({
     value: (dealerForm as any)[key] ?? "",
     onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
       setDealerForm((prev) => ({ ...prev, [key]: e.target.value })),
   });
 
-  const content = useMemo(
-    () =>
-      (
-        ({
-          Dashboard: <Dashboard onNavigate={setActive} />,
-          "Leads Pipeline": <Pipeline onModal={setModal} />,
-          Conversations: <Conversations />,
-          Inventory: <Inventory />,
-          Appointments: <Appointments />,
-          Compliance: <Compliance />,
-          Settings: (
-            <SettingsPage
-              onAdd={() => {
-                setDealerForm(EMPTY_DEALER);
-                setModal("add-dealer");
-              }}
-              onEdit={openEdit}
-            />
-          ),
-        }) as Record<string, React.ReactNode>
-      )[active],
-    [active, openEdit],
-  );
+  const content = useMemo(() => {
+    if (selectedProspect) {
+      return (
+        <ProspectDetail
+          prospect={selectedProspect}
+          onBack={() => setSelectedProspect(null)}
+        />
+      );
+    }
+
+    return (
+      ({
+        Dashboard: <Dashboard onNavigate={(section) => { setSelectedProspect(null); setActive(section); }} />,
+        "Leads Pipeline": (
+          <Pipeline
+            onModal={setModal}
+            onSelectProspect={(p) => setSelectedProspect(p)}
+          />
+        ),
+        Conversations: <Conversations />,
+        Inventory: <Inventory />,
+        Appointments: <Appointments />,
+        Compliance: <Compliance />,
+        Settings: (
+          <SettingsPage
+            onAdd={() => {
+              setDealerForm(EMPTY_DEALER);
+              setModal("add-dealer");
+            }}
+            onEdit={openEdit}
+          />
+        ),
+      }) as Record<string, React.ReactNode>
+    )[active];
+  }, [active, openEdit, selectedProspect]);
 
   return (
     <div className="app-shell">
       <Sidebar
-        active={active}
-        onSelect={setActive}
+        active={selectedProspect ? "" : active}
+        onSelect={(tab) => {
+          setSelectedProspect(null);
+          setActive(tab);
+        }}
         open={menu}
         onClose={() => setMenu(false)}
         collapsed={collapsed}
@@ -154,38 +207,95 @@ export default function LeadCentre() {
           onClose={close}
         >
           <div className="modal-form">
-            <ModalField label="First name *" placeholder="Alex" />
-            <ModalField label="Last name" placeholder="Taylor" />
-            <ModalField label="Mobile number *" placeholder="0491 570 199" />
-            <ModalField label="Email" placeholder="alex@example.com" />
-            <ModalField label="Dealership *" placeholder="Select dealership" />
+            <ModalField
+              label="First name *"
+              placeholder="e.g. muhammad"
+              value={prospectForm.firstName}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, firstName: e.target.value }))
+              }
+            />
+            <ModalField
+              label="Last name"
+              placeholder="e.g. Ahmed"
+              value={prospectForm.lastName}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, lastName: e.target.value }))
+              }
+            />
+            <ModalField
+              label="Mobile number *"
+              placeholder="0412 345 678"
+              value={prospectForm.phone}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, phone: e.target.value }))
+              }
+            />
+            <ModalField
+              label="Email"
+              placeholder="alex@example.com"
+              value={prospectForm.email}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, email: e.target.value }))
+              }
+            />
+            <ModalField
+              label="Dealership *"
+              placeholder="BYD Fairfield VIC"
+              value={prospectForm.dealership}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, dealership: e.target.value }))
+              }
+            />
             <ModalField
               label="Vehicle of interest"
-              placeholder="No specific vehicle / general enquiry"
+              placeholder="2025 BYD ATTO 1"
+              value={prospectForm.vehicle}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, vehicle: e.target.value }))
+              }
             />
             <ModalField
               label="Enquiry description"
-              placeholder="e.g. 2025 BYD SEALION 6"
+              placeholder="e.g. 2025 BYD ATTO 1 with BYD Fairfield VIC"
+              value={prospectForm.enquiryDesc}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, enquiryDesc: e.target.value }))
+              }
               wide
             />
             <ModalField
               label="Enquiry note (what the prospect asked)"
               placeholder="e.g. Is this still available?"
+              value={prospectForm.enquiryNote}
+              onChange={(e) =>
+                setProspectForm((prev) => ({ ...prev, enquiryNote: e.target.value }))
+              }
               wide
             />
-            <div className="simulation">
+            <div
+              className="simulation"
+              style={{ cursor: "pointer", userSelect: "none" }}
+              onClick={() =>
+                setProspectForm((prev) => ({ ...prev, sendSms: !prev.sendSms }))
+              }
+            >
               <div>
                 <b>Send opening SMS immediately</b>
                 <small>
                   Starts the AI qualification conversation as soon as the prospect is created
                 </small>
               </div>
-              <span className="toggle on">
+              <span className={`toggle ${prospectForm.sendSms ? "on" : ""}`}>
                 <i />
               </span>
             </div>
           </div>
-          <ModalActions onClose={close} primary="Create Prospect" />
+          <ModalActions
+            onClose={close}
+            onPrimary={handleProspectCreate}
+            primary="Create Prospect"
+          />
         </Modal>
       )}
 
