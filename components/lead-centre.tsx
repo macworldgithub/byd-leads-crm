@@ -23,6 +23,7 @@ import {
   getDealerships,
   createDealership,
   updateDealership,
+  createLead,
   type Dealership,
 } from "@/lib/api";
 
@@ -116,27 +117,54 @@ export default function LeadCentre() {
     }
   };
 
-  const handleProspectCreate = () => {
-    const newProspect = {
-      id: `MANUAL-${Date.now()}`,
-      firstName: prospectForm.firstName || "muhammad",
-      lastName: prospectForm.lastName || "Ahmed",
-      phone: prospectForm.phone || "0412 345 678",
-      email: prospectForm.email || "muhammad@example.com",
-      dealership: prospectForm.dealership || "BYD Fairfield VIC",
-      vehicle: prospectForm.vehicle || "2025 BYD ATTO 1",
-      enquiryDesc: prospectForm.enquiryDesc || "2025 BYD ATTO 1 with BYD Fairfield VIC",
-      enquiryNote: prospectForm.enquiryNote || "Manually added test prospect",
-      sendSms: prospectForm.sendSms,
-      stage: "Contact",
-      status: "AI active",
-      color: "Apricity White",
-      stockNum: "6944",
-      price: "$23,990",
-    };
+  const handleProspectCreate = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const firstName = prospectForm.firstName || "muhammad";
+      const lastName = prospectForm.lastName || "Ahmed";
+      const lead = await createLead({
+        name: `${firstName} ${lastName}`.trim(),
+        phone: prospectForm.phone || "0412 345 678",
+        email: prospectForm.email || "muhammad@example.com",
+        dealer: prospectForm.dealership || "BYD Fairfield VIC",
+        vehicle: prospectForm.vehicle || "2025 BYD ATTO 1",
+        enquiryDesc: prospectForm.enquiryDesc || "2025 BYD ATTO 1 with BYD Fairfield VIC",
+        enquiryNote: prospectForm.enquiryNote || "Manually added test prospect",
+        stage: "NEW ENQUIRIES",
+        status: "new",
+        tag: "Contact",
+        control: "AI active",
+        score: 10,
+        source: "Manual",
+        price: "$23,990",
+        paintColor: "Apricity White",
+        stockNum: "6944",
+      });
 
-    close();
-    setSelectedProspect(newProspect);
+      close();
+      setSelectedProspect({
+        _id: lead._id,
+        id: lead._id,
+        firstName,
+        lastName,
+        phone: lead.phone,
+        email: lead.email,
+        dealership: lead.dealer,
+        vehicle: lead.vehicle,
+        enquiryDesc: lead.enquiryDesc,
+        enquiryNote: lead.enquiryNote,
+        stage: lead.stage,
+        status: lead.control,
+        stockNum: lead.stockNum,
+        price: lead.price,
+        color: lead.paintColor,
+      });
+    } catch (err: any) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const field = (key: keyof Omit<Dealership, "_id">) => ({
@@ -157,16 +185,28 @@ export default function LeadCentre() {
 
     return (
       ({
-        Dashboard: <Dashboard onNavigate={(section) => { setSelectedProspect(null); setActive(section); }} />,
+        Dashboard: (
+          <Dashboard
+            onNavigate={(section) => {
+              setSelectedProspect(null);
+              setActive(section);
+            }}
+            onSelectProspect={(p) => setSelectedProspect(p)}
+          />
+        ),
         "Leads Pipeline": (
           <Pipeline
             onModal={setModal}
             onSelectProspect={(p) => setSelectedProspect(p)}
           />
         ),
-        Conversations: <Conversations />,
+        Conversations: (
+          <Conversations onSelectProspect={(p) => setSelectedProspect(p)} />
+        ),
         Inventory: <Inventory />,
-        Appointments: <Appointments />,
+        Appointments: (
+          <Appointments onSelectProspect={(p) => setSelectedProspect(p)} />
+        ),
         Compliance: <Compliance />,
         Settings: (
           <SettingsPage
@@ -291,10 +331,14 @@ export default function LeadCentre() {
               </span>
             </div>
           </div>
+          {saveError && (
+            <p style={{ color: "#cf1d29", fontSize: "13px", marginTop: "8px" }}>{saveError}</p>
+          )}
           <ModalActions
             onClose={close}
             onPrimary={handleProspectCreate}
-            primary="Create Prospect"
+            primary={saving ? "Creating..." : "Create Prospect"}
+            disabled={saving}
           />
         </Modal>
       )}

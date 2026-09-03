@@ -41,12 +41,18 @@ export interface Lead {
   tag: string;
   color: string;
   stage: string;
+  status: string;
   source: string;
   phone: string;
+  email: string;
   stockNum: string;
   control: string;
   receivedDaysAgo: number;
   notes: string;
+  enquiryDesc: string;
+  enquiryNote: string;
+  price: string;
+  paintColor: string;
   createdAt: string;
 }
 
@@ -54,6 +60,8 @@ export const getLeads = (params?: Record<string, string>) => {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
   return request<Lead[]>(`/leads${qs}`);
 };
+
+export const getLead = (id: string) => request<Lead>(`/leads/${id}`);
 
 export const createLead = (data: Partial<Lead>) =>
   request<Lead>("/leads", { method: "POST", body: JSON.stringify(data) });
@@ -63,6 +71,12 @@ export const updateLead = (id: string, data: Partial<Lead>) =>
 
 export const deleteLead = (id: string) =>
   request<{ message: string }>(`/leads/${id}`, { method: "DELETE" });
+
+// ── Lead Filter Helpers ──────────────────────────────────────────────────────
+export const getLeadDealerships = () => request<string[]>("/leads/dealerships");
+export const getLeadStatuses = () => request<string[]>("/leads/statuses");
+export const getLeadStats = () =>
+  request<{ total: number; humanAssisted: number; aiQualifying: number; testDrives: number }>("/leads/stats");
 
 // ── Dealerships ──────────────────────────────────────────────────────────────
 export interface Dealership {
@@ -114,14 +128,36 @@ export const getInventory = (params?: Record<string, string>) => {
 };
 
 // ── Conversations ────────────────────────────────────────────────────────────
+export interface ConversationMessage {
+  id: string;
+  sender: "ai" | "user" | "agent" | "system";
+  text: string;
+  time?: string;
+  status?: string;
+  createdAt?: string;
+}
+
+export interface ConversationQualification {
+  intent: string;
+  budget: string;
+  timeline: string;
+  tradeIn: string;
+  finance: string;
+}
+
 export interface Conversation {
   _id: string;
+  leadId?: string;
+  manualProspectId?: string;
   prospectName: string;
   phone: string;
   initials: string;
   dealer: string;
   status: string;
   control: string;
+  suggestedResponses: string[];
+  qualification: ConversationQualification;
+  messages: ConversationMessage[];
   lastMessage: string;
   msgCount: number;
   daysAgo: number;
@@ -131,6 +167,58 @@ export const getConversations = (params?: Record<string, string>) => {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
   return request<Conversation[]>(`/conversations${qs}`);
 };
+
+export const deleteConversation = (id: string) =>
+  request<{ message: string }>(`/conversations/${id}`, { method: "DELETE" });
+
+export const getConversationByLead = (
+  leadOrProspectId: string,
+  extraParams?: { name?: string; phone?: string; dealer?: string; vehicle?: string }
+) => {
+  const qs = extraParams ? "?" + new URLSearchParams(extraParams).toString() : "";
+  return request<Conversation>(`/conversations/by-lead/${leadOrProspectId}${qs}`);
+};
+
+export const simulateCustomerResponse = (
+  conversationId: string,
+  payload: { text: string; vehicle?: string; dealer?: string }
+) =>
+  request<{
+    success: boolean;
+    conversation: Conversation;
+    userMessage: ConversationMessage;
+    aiMessage?: ConversationMessage;
+  }>(`/conversations/${conversationId}/simulate`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const sendAgentReply = (
+  conversationId: string,
+  payload: { text: string }
+) =>
+  request<{
+    success: boolean;
+    conversation: Conversation;
+    agentMessage: ConversationMessage;
+  }>(`/conversations/${conversationId}/agent-reply`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const toggleConversationControl = (
+  conversationId: string,
+  payload: { action: "takeover" | "resume" }
+) =>
+  request<{
+    success: boolean;
+    control: string;
+    conversation: Conversation;
+    systemMessage: ConversationMessage;
+  }>(`/conversations/${conversationId}/toggle-control`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 
 // ── Appointments ─────────────────────────────────────────────────────────────
 export interface Appointment {
@@ -187,4 +275,3 @@ export const testSmsConnection = (data?: Partial<SmsSettings>) =>
     method: "POST",
     body: JSON.stringify(data || {}),
   });
-

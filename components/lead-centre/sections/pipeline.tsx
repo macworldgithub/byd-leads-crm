@@ -12,20 +12,15 @@ import {
   Bot,
   CalendarDays,
   Loader2,
+  XCircle,
 } from "lucide-react";
 import { Pill, Prospect } from "../shared";
-import { getLeads, type Lead } from "@/lib/api";
-import { useState, useEffect } from "react";
-
-const DEALERSHIPS = [
-  "BYD FairField",
-  "BYD FAIRFIELD VIC",
-  "Byd melbourne city",
-];
+import { getLeads, getLeadDealerships, getLeadStatuses, type Lead } from "@/lib/api";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 const STATUS_OPTIONS = [
   "new",
-  "commited",
+  "committed",
   "qualification",
   "sold",
   "lost",
@@ -80,57 +75,90 @@ export function Pipeline({
   const [search, setSearch] = useState("");
   const [dealerFilter, setDealerFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [dealerships, setDealerships] = useState<string[]>([]);
 
-  // const fetchLeads = () => {
-  //   setLoading(true);
-  //   const params: Record<string, string> = {};
-  //   if (search) params.q = search;
-  //   if (dealerFilter) params.dealer = dealerFilter;
-  //   getLeads(params)
-  //     .then(setLeads)
-  //     .catch((err) => setError(err.message))
-  //     .finally(() => setLoading(false));
-  // };
-  const fetchLeads = () => {
+  // Debounce timer for search
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [search]);
+
+  // Load dealerships for dropdown
+  useEffect(() => {
+    getLeadDealerships()
+      .then(setDealerships)
+      .catch(() => {
+        // Fallback: extract from leads
+      });
+  }, []);
+
+  const fetchLeads = useCallback(() => {
     setLoading(true);
+    setError(null);
 
     const params: Record<string, string> = {};
-
-    if (search) {
-      params.q = search;
-    }
-
-    if (dealerFilter) {
-      params.dealer = dealerFilter;
-    }
-
-    if (statusFilter) {
-      params.status = statusFilter;
-    }
+    if (debouncedSearch) params.q = debouncedSearch;
+    if (dealerFilter) params.dealer = dealerFilter;
+    if (statusFilter) params.status = statusFilter;
 
     getLeads(params)
-      .then(setLeads)
+      .then((data) => {
+        setLeads(data);
+        // Also update dealerships from data if API failed
+        if (dealerships.length === 0) {
+          const dealers = Array.from(new Set(data.map((l) => l.dealer))).filter(Boolean).sort();
+          setDealerships(dealers);
+        }
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  };
+  }, [debouncedSearch, dealerFilter, statusFilter]);
 
   useEffect(() => {
     fetchLeads();
-  }, [search, dealerFilter, statusFilter]);
+  }, [fetchLeads]);
 
-  // useEffect(() => {
-  //   fetchLeads();
-  // }, [search, dealerFilter]);
+  const hasActiveFilters = !!debouncedSearch || !!dealerFilter || !!statusFilter;
 
-  const dealers = Array.from(new Set(leads.map((l) => l.dealer))).filter(Boolean);
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setDealerFilter("");
+    setStatusFilter("");
+  };
 
   const byStage = (stage: string) => leads.filter((l) => l.stage === stage);
-
-  const stageTotal = (stage: string) => byStage(stage).length;
 
   const humanAssisted = leads.filter((l) => l.control?.toLowerCase().includes("human")).length;
   const aiQualifying = leads.filter((l) => l.stage === "AI QUALIFYING").length;
   const testDrives = leads.filter((l) => l.stage === "TEST DRIVE BOOKED").length;
+
+  const mapLeadToProspect = (l: Lead) => ({
+    id: l._id,
+    firstName: l.name.split(" ")[0] || l.name,
+    lastName: l.name.split(" ").slice(1).join(" ") || "",
+    phone: l.phone,
+    email: l.email,
+    dealership: l.dealer,
+    vehicle: l.vehicle,
+    stockNum: l.stockNum,
+    stage: l.stage,
+    status: l.control,
+    price: l.price,
+    color: l.paintColor,
+    enquiryDesc: l.enquiryDesc,
+    enquiryNote: l.enquiryNote,
+    _id: l._id,
+  });
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
@@ -186,59 +214,46 @@ export function Pipeline({
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={Users} value={leads.length} desc="Attachment prospects" />
+        <StatCard icon={Users} value={leads.length} desc="Active prospects" />
         <StatCard icon={Bot} value={aiQualifying} desc="AI qualifying" tone="teal" />
         <StatCard icon={CalendarDays} value={testDrives} desc="Commitments" tone="teal" />
         <StatCard icon={Users} value={humanAssisted} desc="Human assisted" tone="amber" />
       </div>
 
       {/* ── Toolbar ── */}
-      {/* ── Toolbar ── */}
       <div className="bg-white border border-[#e2e2e2] rounded-xl px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3">
 
         {/* Search */}
         <div className="flex items-center gap-2 flex-1 min-w-0 border border-[#e2e2e2] rounded-lg px-3 py-2">
-          <Search
-            size={16}
-            className="text-[#657083] shrink-0"
-          />
-
+          <Search size={16} className="text-[#657083] shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search prospect, vehicle, stock or phone..."
             className="flex-1 min-w-0 text-sm outline-none bg-transparent placeholder:text-[#aaa]"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="text-gray-400 hover:text-gray-600 shrink-0"
+            >
+              <XCircle size={16} />
+            </button>
+          )}
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto items-stretch sm:items-center">
 
           {/* All Dealerships */}
           <select
             value={dealerFilter}
             onChange={(e) => setDealerFilter(e.target.value)}
-            className="
-        w-full sm:w-[190px]
-        text-sm
-        border border-[#e2e2e2]
-        rounded-lg
-        px-3 py-2
-        bg-white
-        outline-none
-        cursor-pointer
-        focus:border-[#cf1d29]
-      "
+            className="w-full sm:w-[190px] text-sm border border-[#e2e2e2] rounded-lg px-3 py-2 bg-white outline-none cursor-pointer focus:border-[#cf1d29]"
           >
-            <option value="">
-              All dealerships
-            </option>
-
-            {DEALERSHIPS.map((dealer) => (
-              <option
-                key={dealer}
-                value={dealer}
-              >
+            <option value="">All dealerships</option>
+            {dealerships.map((dealer) => (
+              <option key={dealer} value={dealer}>
                 {dealer}
               </option>
             ))}
@@ -248,32 +263,25 @@ export function Pipeline({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="
-        w-full sm:w-[180px]
-        text-sm
-        border border-[#e2e2e2]
-        rounded-lg
-        px-3 py-2
-        bg-white
-        outline-none
-        cursor-pointer
-        focus:border-[#cf1d29]
-      "
+            className="w-full sm:w-[180px] text-sm border border-[#e2e2e2] rounded-lg px-3 py-2 bg-white outline-none cursor-pointer focus:border-[#cf1d29]"
           >
-            <option value="">
-              All statuses
-            </option>
-
+            <option value="">All statuses</option>
             {STATUS_OPTIONS.map((status) => (
-              <option
-                key={status}
-                value={status}
-              >
+              <option key={status} value={status}>
                 {status.charAt(0).toUpperCase() + status.slice(1)}
               </option>
             ))}
           </select>
 
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#cf1d29] hover:bg-red-50 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <XCircle size={14} /> Clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -285,6 +293,12 @@ export function Pipeline({
       {error && (
         <div className="text-center py-10 text-red-500 text-sm">
           Failed to load leads: {error}
+          <button
+            onClick={fetchLeads}
+            className="ml-3 text-sm underline text-[#cf1d29] hover:text-red-700"
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -295,9 +309,9 @@ export function Pipeline({
             [
               ["NEW ENQUIRIES", "Awaiting first contact"],
               ["AI QUALIFYING", "Conversation in progress"],
-              ["TEST DRIVE BOOKED", "Conversation in progress"],
+              ["TEST DRIVE BOOKED", "Commitment confirmed"],
             ] as const
-          ).map(([name, sub], i) => {
+          ).map(([name, sub]) => {
             const stageLeads = byStage(name);
             return (
               <div
@@ -326,19 +340,7 @@ export function Pipeline({
                       <Prospect
                         key={l._id}
                         lead={l}
-                        onClick={() =>
-                          onSelectProspect?.({
-                            id: l.stockNum ? `ID-${l.stockNum}` : l._id,
-                            firstName: l.name.split(" ")[0] || l.name,
-                            lastName: l.name.split(" ").slice(1).join(" ") || "",
-                            phone: l.phone,
-                            dealership: l.dealer,
-                            vehicle: l.vehicle,
-                            stockNum: l.stockNum,
-                            stage: l.stage,
-                            status: l.control,
-                          })
-                        }
+                        onClick={() => onSelectProspect?.(mapLeadToProspect(l))}
                       />
                     ))}
                   </div>
@@ -352,107 +354,93 @@ export function Pipeline({
       {/* ── List View ── */}
       {!loading && !error && viewMode === "list" && (
         <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden">
-          {/* Mobile card layout */}
-          <div className="sm:hidden divide-y divide-[#e2e2e2]">
-            {leads.map((l) => (
-              <div
-                key={l._id}
-                className="p-4 flex flex-col gap-2 hover:bg-[#f9f9f9] cursor-pointer transition-colors"
-                onClick={() =>
-                  onSelectProspect?.({
-                    id: l.stockNum ? `ID-${l.stockNum}` : l._id,
-                    firstName: l.name.split(" ")[0] || l.name,
-                    lastName: l.name.split(" ").slice(1).join(" ") || "",
-                    phone: l.phone,
-                    dealership: l.dealer,
-                    vehicle: l.vehicle,
-                    stockNum: l.stockNum,
-                    stage: l.stage,
-                    status: l.control,
-                  })
-                }
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <b className="block text-sm font-semibold">{l.name}</b>
-                    <small className="text-xs text-[#657083]">{l.phone}</small>
-                  </div>
-                  <span className="text-lg font-bold text-[#cf1d29]">{l.score}</span>
-                </div>
-                <div>
-                  <b className="block text-sm">{l.vehicle}</b>
-                  <small className="text-xs text-[#657083]">Stock #{l.stockNum}</small>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <Pill tone={l.tag === "Commitment" ? "purple" : "amber"}>{l.tag}</Pill>
-                  <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
-                  <span className="text-xs text-[#657083] ml-auto">{l.receivedDaysAgo}d ago</span>
-                </div>
-                <small className="text-xs text-[#657083]">{l.source} · {l.dealer}</small>
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop table layout */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-[#f9f9f9]">
-                  {["Prospect", "Vehicle enquiry", "Source", "Dealership", "Status", "Control", "Score", "Received"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#657083] border-b border-[#e2e2e2]">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
+          {leads.length === 0 ? (
+            <div className="text-center py-16 text-gray-400">
+              <Network size={24} className="mx-auto mb-3 opacity-30" />
+              <b className="block text-sm mb-1">No prospects found</b>
+              <small className="text-xs">Try adjusting your search or filters.</small>
+            </div>
+          ) : (
+            <>
+              {/* Mobile card layout */}
+              <div className="sm:hidden divide-y divide-[#e2e2e2]">
                 {leads.map((l) => (
-                  <tr
+                  <div
                     key={l._id}
-                    onClick={() =>
-                      onSelectProspect?.({
-                        id: l.stockNum ? `ID-${l.stockNum}` : l._id,
-                        firstName: l.name.split(" ")[0] || l.name,
-                        lastName: l.name.split(" ").slice(1).join(" ") || "",
-                        phone: l.phone,
-                        dealership: l.dealer,
-                        vehicle: l.vehicle,
-                        stockNum: l.stockNum,
-                        stage: l.stage,
-                        status: l.control,
-                      })
-                    }
-                    className="hover:bg-[#f9f9f9] cursor-pointer transition-colors"
+                    className="p-4 flex flex-col gap-2 hover:bg-[#f9f9f9] cursor-pointer transition-colors"
+                    onClick={() => onSelectProspect?.(mapLeadToProspect(l))}
                   >
-                    <td className="px-4 py-3 border-b border-[#e2e2e2]">
-                      <b className="block text-sm font-semibold">{l.name}</b>
-                      <small className="text-xs text-[#657083]">{l.phone}</small>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <b className="block text-sm font-semibold">{l.name}</b>
+                        <small className="text-xs text-[#657083]">{l.phone}</small>
+                      </div>
+                      <span className="text-lg font-bold text-[#cf1d29]">{l.score}</span>
+                    </div>
+                    <div>
                       <b className="block text-sm">{l.vehicle}</b>
                       <small className="text-xs text-[#657083]">Stock #{l.stockNum}</small>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[#e2e2e2]">
-                      <small className="text-xs text-[#657083]">{l.source}</small>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[#e2e2e2]">
-                      <small className="text-xs text-[#657083]">{l.dealer}</small>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                    </div>
+                    <div className="flex flex-wrap gap-2 items-center">
                       <Pill tone={l.tag === "Commitment" ? "purple" : "amber"}>{l.tag}</Pill>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[#e2e2e2]">
                       <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[#e2e2e2] text-right">
-                      <b className="text-sm font-bold">{l.score}</b>
-                    </td>
-                    <td className="px-4 py-3 border-b border-[#e2e2e2] text-right">
-                      <small className="text-xs text-[#657083]">{l.receivedDaysAgo}d ago</small>
-                    </td>
-                  </tr>
+                      <span className="text-xs text-[#657083] ml-auto">{l.receivedDaysAgo}d ago</span>
+                    </div>
+                    <small className="text-xs text-[#657083]">{l.source} · {l.dealer}</small>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[#f9f9f9]">
+                      {["Prospect", "Vehicle enquiry", "Source", "Dealership", "Status", "Control", "Score", "Received"].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-[#657083] border-b border-[#e2e2e2]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leads.map((l) => (
+                      <tr
+                        key={l._id}
+                        onClick={() => onSelectProspect?.(mapLeadToProspect(l))}
+                        className="hover:bg-[#f9f9f9] cursor-pointer transition-colors"
+                      >
+                        <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                          <b className="block text-sm font-semibold">{l.name}</b>
+                          <small className="text-xs text-[#657083]">{l.phone}</small>
+                        </td>
+                        <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                          <b className="block text-sm">{l.vehicle}</b>
+                          <small className="text-xs text-[#657083]">Stock #{l.stockNum}</small>
+                        </td>
+                        <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                          <small className="text-xs text-[#657083]">{l.source}</small>
+                        </td>
+                        <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                          <small className="text-xs text-[#657083]">{l.dealer}</small>
+                        </td>
+                        <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                          <Pill tone={l.tag === "Commitment" ? "purple" : "amber"}>{l.tag}</Pill>
+                        </td>
+                        <td className="px-4 py-3 border-b border-[#e2e2e2]">
+                          <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
+                        </td>
+                        <td className="px-4 py-3 border-b border-[#e2e2e2] text-right">
+                          <b className="text-sm font-bold">{l.score}</b>
+                        </td>
+                        <td className="px-4 py-3 border-b border-[#e2e2e2] text-right">
+                          <small className="text-xs text-[#657083]">{l.receivedDaysAgo}d ago</small>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

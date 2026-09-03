@@ -2,12 +2,17 @@
 
 import { ChevronDown, Check, Loader2 } from "lucide-react";
 import { Card, Pill, PageHeader } from "../shared";
-import { getAppointments, updateAppointment, type Appointment } from "@/lib/api";
+import { getAppointments, updateAppointment, getLeads, type Appointment } from "@/lib/api";
+import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-mapper";
 import { useState, useEffect } from "react";
 
 const STATUS_OPTIONS = ["Proposed", "Confirmed", "Completed", "Cancelled", "No Show"];
 
-export function Appointments() {
+export function Appointments({
+  onSelectProspect,
+}: {
+  onSelectProspect?: (prospect: any) => void;
+}) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +43,36 @@ export function Appointments() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleAppointmentClick = async (appt: Appointment) => {
+    if (!onSelectProspect) return;
+
+    try {
+      const leads = await getLeads({ q: appt.phone || appt.prospectName });
+      const matched =
+        leads.find((l) => l.phone === appt.phone) ||
+        leads.find((l) => l.name.toLowerCase() === appt.prospectName.toLowerCase()) ||
+        leads[0];
+
+      if (matched) {
+        onSelectProspect(mapLeadToProspect(matched));
+        return;
+      }
+    } catch {
+      // Fallback below
+    }
+
+    onSelectProspect(
+      createProspectFromMetadata({
+        id: appt._id,
+        name: appt.prospectName,
+        phone: appt.phone,
+        dealership: appt.dealership,
+        vehicle: appt.vehicle !== "—" ? appt.vehicle : "2025 BYD ATTO 1",
+        status: appt.status,
+      })
+    );
   };
 
   return (
@@ -75,10 +110,14 @@ export function Appointments() {
                 </tr>
               ) : (
                 appointments.map((appt) => (
-                  <tr key={appt._id}>
+                  <tr
+                    key={appt._id}
+                    onClick={() => handleAppointmentClick(appt)}
+                    className="hover:bg-[#f9f9f9] cursor-pointer transition-colors"
+                  >
                     <td><b>{appt.when}</b></td>
                     <td className="red-text">
-                      <b>{appt.prospectName}</b>
+                      <b className="hover:underline">{appt.prospectName}</b>
                       <small>{appt.phone}</small>
                     </td>
                     <td>{appt.type}</td>

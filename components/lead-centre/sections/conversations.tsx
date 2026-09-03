@@ -2,12 +2,17 @@
 
 import { MessageSquare, Bot, Activity, Search, Loader2 } from "lucide-react";
 import { Pill } from "../shared";
-import { getConversations, type Conversation } from "@/lib/api";
+import { getConversations, getLeads, type Conversation } from "@/lib/api";
+import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-mapper";
 import { useState, useEffect } from "react";
 
 type Filter = "all" | "ai" | "human";
 
-export function Conversations() {
+export function Conversations({
+  onSelectProspect,
+}: {
+  onSelectProspect?: (prospect: any) => void;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -25,6 +30,40 @@ export function Conversations() {
       .finally(() => setLoading(false));
   }, [filter, search]);
 
+  const handleConversationClick = async (c: Conversation) => {
+    if (!onSelectProspect) return;
+
+    try {
+      const leads = await getLeads({ q: c.phone || c.prospectName });
+      const matched =
+        (c.leadId && leads.find((l) => l._id === c.leadId)) ||
+        (c.phone && leads.find((l) => l.phone === c.phone)) ||
+        leads.find(
+          (l) => l.name.toLowerCase() === c.prospectName.toLowerCase()
+        ) ||
+        leads[0];
+
+      if (matched) {
+        onSelectProspect(mapLeadToProspect(matched));
+        return;
+      }
+    } catch {
+      // Fallback below
+    }
+
+    onSelectProspect(
+      createProspectFromMetadata({
+        id: c.leadId || c.manualProspectId || c._id,
+        _id: c.leadId || c._id,
+        name: c.prospectName,
+        phone: c.phone,
+        dealer: c.dealer,
+        control: c.control,
+        status: c.status,
+      })
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       {/* ── Page Header ── */}
@@ -39,9 +78,9 @@ export function Conversations() {
         <div className="flex rounded-lg overflow-hidden border border-[#e2e2e2] self-start shrink-0">
           {(
             [
-              { key: "all",   icon: MessageSquare, label: "All" },
-              { key: "ai",    icon: Bot,           label: "AI Active" },
-              { key: "human", icon: Activity,      label: "Human Control" },
+              { key: "all", icon: MessageSquare, label: "All" },
+              { key: "ai", icon: Bot, label: "AI Active" },
+              { key: "human", icon: Activity, label: "Human Control" },
             ] as const
           ).map(({ key, icon: Icon, label }) => (
             <button
@@ -92,7 +131,8 @@ export function Conversations() {
             conversations.map((c) => (
               <div
                 key={c._id}
-                className="flex flex-col sm:flex-row sm:items-start gap-3 px-4 py-4 border-b border-[#e2e2e2] last:border-0 hover:bg-[#fafafa] transition-colors"
+                onClick={() => handleConversationClick(c)}
+                className="flex flex-col sm:flex-row sm:items-start gap-3 px-4 py-4 border-b border-[#e2e2e2] last:border-0 hover:bg-[#f9f9f9] cursor-pointer transition-colors"
               >
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full bg-[#f0f0f0] flex items-center justify-center text-xs font-bold text-[#444] shrink-0">
@@ -121,7 +161,9 @@ export function Conversations() {
                 {/* Desktop meta */}
                 <div className="hidden sm:flex flex-col items-end shrink-0 text-right gap-0.5">
                   <span className="text-xs font-medium text-[#333]">{c.phone}</span>
-                  <small className="text-xs text-[#657083]">{c.daysAgo}d ago · {c.msgCount} msgs</small>
+                  <small className="text-xs text-[#657083]">
+                    {c.daysAgo}d ago · {c.msgCount} msgs
+                  </small>
                 </div>
               </div>
             ))

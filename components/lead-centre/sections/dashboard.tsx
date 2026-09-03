@@ -99,7 +99,15 @@ function Skeleton({ className = "" }: { className?: string }) {
   );
 }
 
-export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
+import { mapLeadToProspect } from "@/lib/prospect-mapper";
+
+export function Dashboard({
+  onNavigate,
+  onSelectProspect,
+}: {
+  onNavigate?: (page: string) => void;
+  onSelectProspect?: (prospect: any) => void;
+}) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,7 +238,11 @@ export function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void 
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {recentLeads.slice(0, 4).map((l) => (
-              <Prospect key={l._id} lead={l} />
+              <Prospect
+                key={l._id}
+                lead={l}
+                onClick={() => onSelectProspect?.(mapLeadToProspect(l))}
+              />
             ))}
           </div>
         </div>
