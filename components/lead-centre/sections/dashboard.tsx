@@ -20,12 +20,14 @@ function StatCard({
   value,
   desc,
   tone = "red",
+  onClick,
 }: {
   icon: any;
   title: string;
   value: string | number;
   desc: string;
   tone?: "red" | "teal" | "amber" | "slate";
+  onClick?: () => void;
 }) {
   const iconColors: Record<string, string> = {
     red: "bg-red-50 text-red-600",
@@ -34,7 +36,12 @@ function StatCard({
     slate: "bg-slate-100 text-slate-500",
   };
   return (
-    <div className="bg-white border border-[#e2e2e2] rounded-xl p-4 flex items-center gap-3 hover:shadow-sm transition-shadow">
+    <div
+      onClick={onClick}
+      className={`bg-white border border-[#e2e2e2] rounded-xl p-4 flex items-center gap-3 hover:shadow-sm transition-all ${
+        onClick ? "cursor-pointer hover:border-gray-300" : ""
+      }`}
+    >
       <div className={`rounded-lg p-2 shrink-0 ${iconColors[tone] ?? iconColors.red}`}>
         <Icon size={18} strokeWidth={1.8} />
       </div>
@@ -164,6 +171,7 @@ export function Dashboard({
           title="Active Journeys"
           value={stats.activeJourneys}
           desc="All attachment prospects are active"
+          onClick={() => onNavigate?.("Leads Pipeline")}
         />
         <StatCard
           icon={CalendarDays}
@@ -171,6 +179,7 @@ export function Dashboard({
           value={stats.appointments}
           desc="Confirmed dealership test drives"
           tone="teal"
+          onClick={() => onNavigate?.("Appointments")}
         />
         <StatCard
           icon={MessageSquare}
@@ -178,6 +187,7 @@ export function Dashboard({
           value={stats.conversationActivity}
           desc="0 inbound · 0 outbound today"
           tone="slate"
+          onClick={() => onNavigate?.("Conversations")}
         />
         <StatCard
           icon={Users}
@@ -185,6 +195,7 @@ export function Dashboard({
           value={stats.humanAssisted}
           desc="Specialist takeover in progress"
           tone="amber"
+          onClick={() => onNavigate?.("Conversations")}
         />
       </div>
 
