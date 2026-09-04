@@ -47,16 +47,15 @@ const EMPTY_DEALER: Omit<Dealership, "_id"> = {
   saturdayHoursEnd: "17:00",
 };
 
-// ── Prospect Form State ───────────────────────────────────────────────────────
 const EMPTY_PROSPECT = {
-  firstName: "muhammad",
-  lastName: "Ahmed",
-  phone: "0412 345 678",
-  email: "muhammad@example.com",
-  dealership: "BYD Fairfield VIC",
-  vehicle: "2025 BYD ATTO 1",
-  enquiryDesc: "2025 BYD ATTO 1 with BYD Fairfield VIC",
-  enquiryNote: "Manually added test prospect",
+  firstName: "",
+  lastName: "",
+  phone: "",
+  email: "",
+  dealership: "",
+  vehicle: "",
+  enquiryDesc: "",
+  enquiryNote: "",
   sendSms: true,
 };
 
@@ -121,16 +120,16 @@ export default function LeadCentre() {
     setSaving(true);
     setSaveError(null);
     try {
-      const firstName = prospectForm.firstName || "muhammad";
-      const lastName = prospectForm.lastName || "Ahmed";
+      const firstName = prospectForm.firstName;
+      const lastName = prospectForm.lastName;
       const lead = await createLead({
         name: `${firstName} ${lastName}`.trim(),
-        phone: prospectForm.phone || "0412 345 678",
-        email: prospectForm.email || "muhammad@example.com",
-        dealer: prospectForm.dealership || "BYD Fairfield VIC",
-        vehicle: prospectForm.vehicle || "2025 BYD ATTO 1",
-        enquiryDesc: prospectForm.enquiryDesc || "2025 BYD ATTO 1 with BYD Fairfield VIC",
-        enquiryNote: prospectForm.enquiryNote || "Manually added test prospect",
+        phone: prospectForm.phone,
+        email: prospectForm.email,
+        dealer: prospectForm.dealership,
+        vehicle: prospectForm.vehicle,
+        enquiryDesc: prospectForm.enquiryDesc,
+        enquiryNote: prospectForm.enquiryNote,
         stage: "NEW ENQUIRIES",
         status: "new",
         tag: "Contact",
@@ -249,7 +248,7 @@ export default function LeadCentre() {
           <div className="modal-form">
             <ModalField
               label="First name *"
-              placeholder="e.g. muhammad"
+              placeholder="e.g. Alex"
               value={prospectForm.firstName}
               onChange={(e) =>
                 setProspectForm((prev) => ({ ...prev, firstName: e.target.value }))
@@ -257,7 +256,7 @@ export default function LeadCentre() {
             />
             <ModalField
               label="Last name"
-              placeholder="e.g. Ahmed"
+              placeholder="e.g. Martinez"
               value={prospectForm.lastName}
               onChange={(e) =>
                 setProspectForm((prev) => ({ ...prev, lastName: e.target.value }))
@@ -326,9 +325,9 @@ export default function LeadCentre() {
                   Starts the AI qualification conversation as soon as the prospect is created
                 </small>
               </div>
-              <span className={`toggle ${prospectForm.sendSms ? "on" : ""}`}>
+              {/* <span className={`toggle ${prospectForm.sendSms ? "on" : ""}`}>
                 <i />
-              </span>
+              </span> */}
             </div>
           </div>
           {saveError && (
