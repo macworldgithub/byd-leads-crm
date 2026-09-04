@@ -1,9 +1,49 @@
 "use client";
 
-import { Ban, Check, Clock3, FileCheck2, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Ban, Check, Clock3, FileCheck2, ShieldCheck, Loader2 } from "lucide-react";
 import { Card, PageHeader, Icon } from "../shared";
+import { getAuditTrails, getLead, type AuditTrail } from "@/lib/api";
+import { mapLeadToProspect } from "@/lib/prospect-mapper";
 
-export function Compliance() {
+function timeAgo(dateString: string) {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor(diff / (1000 * 60));
+  
+  if (days > 0) return `${days}d ago`;
+  if (hours > 0) return `${hours}h ago`;
+  if (minutes > 0) return `${minutes}m ago`;
+  return "just now";
+}
+
+export function Compliance({
+  onSelectProspect,
+}: {
+  onSelectProspect?: (prospect: any) => void;
+}) {
+  const [trails, setTrails] = useState<AuditTrail[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getAuditTrails()
+      .then(setTrails)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleTrailClick = async (leadId: string) => {
+    if (!onSelectProspect || !leadId) return;
+    try {
+      const lead = await getLead(leadId);
+      onSelectProspect(mapLeadToProspect(lead));
+    } catch (err) {
+      console.error("Failed to load lead from audit trail", err);
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -86,22 +126,30 @@ export function Compliance() {
             <ShieldCheck size={17} style={{ color: "var(--red)" }} /> Audit
             Trail
           </h2>
-          {[
-            "demo dataset refreshed",
-            "callback confirmed lead #104",
-            "qualification updated lead #102",
-            "appointment booked lead #106",
-            "human takeover lead #104",
-            "qualification updated lead #101",
-          ].map((x, i) => (
-            <div className="audit-row" key={x}>
-              <i />
-              <div>
-                <b>{x}</b>
-                <small>{i % 2 ? "Rowland Godfrey" : "Ava AI"} · 4d ago</small>
-              </div>
+          {loading ? (
+            <div style={{ padding: "20px", display: "flex", justifyContent: "center" }}>
+              <Loader2 className="animate-spin" size={24} style={{ color: "var(--red)" }} />
             </div>
-          ))}
+          ) : error ? (
+            <div style={{ padding: "20px", color: "gray", fontSize: "14px" }}>Failed to load audit trails.</div>
+          ) : trails.length === 0 ? (
+            <div style={{ padding: "20px", color: "gray", fontSize: "14px" }}>No audit trails found.</div>
+          ) : (
+            trails.map((trail) => (
+              <div 
+                className="audit-row" 
+                key={trail._id} 
+                onClick={() => handleTrailClick(trail.leadId)}
+                style={{ cursor: trail.leadId ? "pointer" : "default" }}
+              >
+                <i />
+                <div>
+                  <b>{trail.message}</b>
+                  <small>{trail.actor} · {timeAgo(trail.createdAt)}</small>
+                </div>
+              </div>
+            ))
+          )}
         </Card>
       </div>
     </>

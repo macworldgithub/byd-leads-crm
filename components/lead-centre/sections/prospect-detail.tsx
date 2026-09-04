@@ -28,6 +28,7 @@ import {
   type Conversation,
   type ConversationMessage,
 } from "@/lib/api";
+import { Modal, ModalActions } from "../shared";
 
 export interface ProspectDetailProps {
   prospect?: {
@@ -123,6 +124,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
   const [isTogglingControl, setIsTogglingControl] = useState(false);
   const [isSavingStage, setIsSavingStage] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const [qualification, setQualification] = useState({
     intent: "—",
@@ -281,9 +283,11 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
   };
 
   // Delete lead & related conversation
-  const handleDelete = async () => {
-    if (!confirm("Delete this prospect? This action cannot be undone.")) return;
+  const handleDelete = () => {
+    setIsDeleteModalOpen(true);
+  };
 
+  const confirmDelete = async () => {
     setIsDeleting(true);
     try {
       const deletePromises: Promise<any>[] = [];
@@ -749,6 +753,21 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
           </div>
         </div>
       </div>
+
+      {isDeleteModalOpen && (
+        <Modal
+          title="Delete Prospect"
+          description="Are you sure you want to delete this prospect? This action cannot be undone."
+          onClose={() => setIsDeleteModalOpen(false)}
+        >
+          <ModalActions
+            onClose={() => setIsDeleteModalOpen(false)}
+            onPrimary={confirmDelete}
+            primary={isDeleting ? "Deleting..." : "Delete"}
+            disabled={isDeleting}
+          />
+        </Modal>
+      )}
     </div>
   );
 }

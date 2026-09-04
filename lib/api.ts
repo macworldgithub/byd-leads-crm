@@ -275,3 +275,15 @@ export const testSmsConnection = (data?: Partial<SmsSettings>) =>
     method: "POST",
     body: JSON.stringify(data || {}),
   });
+
+// ── Audit Trails ─────────────────────────────────────────────────────────────
+export interface AuditTrail {
+  _id: string;
+  message: string;
+  actor: string;
+  leadId: string;
+  createdAt: string;
+}
+
+export const getAuditTrails = () => request<AuditTrail[]>("/audit-trails");
+

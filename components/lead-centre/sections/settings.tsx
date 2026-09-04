@@ -16,7 +16,7 @@ import {
   EyeOff,
   Clock,
 } from "lucide-react";
-import { Card, Button, Pill, PageHeader } from "../shared";
+import { Card, Button, Pill, PageHeader, Modal, ModalActions } from "../shared";
 import {
   getDealerships,
   deleteDealership,
@@ -41,6 +41,7 @@ export function SettingsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dealershipToDelete, setDealershipToDelete] = useState<Dealership | null>(null);
 
   // ── SMS Configuration State (Not auto-fetched on page load) ─────────────
   const [smsUsername, setSmsUsername] = useState("");
@@ -156,12 +157,14 @@ export function SettingsPage({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this dealership?")) return;
+  const confirmDeleteDealership = async () => {
+    if (!dealershipToDelete) return;
+    const id = dealershipToDelete._id;
     setDeletingId(id);
     try {
       await deleteDealership(id);
       setDealerships((prev) => prev.filter((d) => d._id !== id));
+      setDealershipToDelete(null);
     } catch (err: any) {
       alert("Failed to delete: " + err.message);
     } finally {
@@ -226,7 +229,7 @@ export function SettingsPage({
                       <Pencil size={14} /> Edit
                     </Button>
                     <button
-                      onClick={() => handleDelete(d._id)}
+                      onClick={() => setDealershipToDelete(d)}
                       disabled={deletingId === d._id}
                       style={{
                         display: "flex",
@@ -502,6 +505,21 @@ export function SettingsPage({
           </small>
         </Card>
       </div>
+
+      {dealershipToDelete && (
+        <Modal
+          title="Delete Dealership"
+          description={`Are you sure you want to delete ${dealershipToDelete.name}? This action cannot be undone.`}
+          onClose={() => setDealershipToDelete(null)}
+        >
+          <ModalActions
+            onClose={() => setDealershipToDelete(null)}
+            onPrimary={confirmDeleteDealership}
+            primary={deletingId === dealershipToDelete._id ? "Deleting..." : "Delete"}
+            disabled={deletingId === dealershipToDelete._id}
+          />
+        </Modal>
+      )}
     </>
   );
 }

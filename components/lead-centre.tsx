@@ -207,7 +207,7 @@ export default function LeadCentre() {
         Appointments: (
           <Appointments onSelectProspect={(p) => setSelectedProspect(p)} />
         ),
-        Compliance: <Compliance />,
+        Compliance: <Compliance onSelectProspect={(p) => setSelectedProspect(p)} />,
         Settings: (
           <SettingsPage
             onAdd={() => {
