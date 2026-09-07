@@ -309,6 +309,7 @@ export function Pipeline({
             className="w-full sm:w-[160px] text-sm border border-[#e2e2e2] rounded-lg px-3 py-2 bg-white outline-none cursor-pointer focus:border-[#cf1d29]"
           >
             <option value="">All platforms</option>
+            <option value="virtualyard">Virtual Yard</option>
             <option value="autogate">Autogate</option>
             <option value="manual">Manual</option>
           </select>
@@ -438,6 +439,9 @@ export function Pipeline({
                     <div className="flex flex-wrap gap-2 items-center">
                       <Pill tone={l.tag === "Commitment" ? "purple" : "amber"}>{l.tag}</Pill>
                       <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
+                      {l.platform === "virtualyard" && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#d1fae5", color: "#065f46", letterSpacing: "0.05em" }}>VIRTUAL YARD</span>
+                      )}
                       {l.platform === "autogate" && (
                         <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1d4ed8", letterSpacing: "0.05em" }}>AUTOGATE</span>
                       )}
@@ -485,6 +489,9 @@ export function Pipeline({
                         <td className="px-4 py-3 border-b border-[#e2e2e2]">
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
+                            {l.platform === "virtualyard" && (
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#d1fae5", color: "#065f46", letterSpacing: "0.05em", width: "fit-content" }}>VIRTUAL YARD</span>
+                            )}
                             {l.platform === "autogate" && (
                               <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1d4ed8", letterSpacing: "0.05em", width: "fit-content" }}>AUTOGATE</span>
                             )}

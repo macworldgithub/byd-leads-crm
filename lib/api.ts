@@ -67,7 +67,23 @@ export interface Lead {
   paintColor: string;
   createdAt: string;
   // Platform
-  platform?: "manual" | "autogate" | "sms";
+  platform?: "manual" | "autogate" | "sms" | "virtualyard";
+  // Virtualyard extras
+  virtualyardId?: string;
+  customerId?: string;
+  vyStage?: string;
+  vyStageText?: string;
+  vyTab?: string;
+  vyStatus?: string;
+  assignedTo?: string;
+  lastContact?: string;
+  leadDate?: string;
+  testDrive?: {
+    testDriveDate?: string | null;
+    location?: string;
+    status?: string;
+    confirmed?: boolean;
+  };
   // Autogate extras
   autogateId?: string;
   autogateLeadId?: string;
@@ -195,7 +211,7 @@ export interface InventoryItem {
   price: string;
   lastSeen: string;
   // Platform
-  platform?: "manual" | "autogate";
+  platform?: "manual" | "autogate" | "virtualyard";
   // Autogate rich fields
   identifier?: string;
   networkId?: string;

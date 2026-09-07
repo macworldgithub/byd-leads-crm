@@ -6,11 +6,17 @@ import { ChevronRight, X } from "lucide-react";
 export function Card({
   children,
   className = "",
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) {
-  return <section className={`card ${className}`}>{children}</section>;
+  return (
+    <section className={`card ${className}`} style={style}>
+      {children}
+    </section>
+  );
 }
 
 export function Button({
@@ -213,13 +219,21 @@ export function Prospect({
     >
       <div className="prospect-head">
         <b>{lead.name}</b>
-        <Pill tone={lead.tag === "Commitment" ? "purple" : "amber"}>
-          {lead.tag}
-        </Pill>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {lead.platform === "virtualyard" && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "linear-gradient(135deg, #065f46 0%, #059669 100%)", color: "#fff", letterSpacing: "0.04em" }}>VY</span>
+          )}
+          {lead.platform === "autogate" && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)", color: "#fff", letterSpacing: "0.04em" }}>AG</span>
+          )}
+          <Pill tone={lead.tag === "Commitment" ? "purple" : "amber"}>
+            {lead.tag}
+          </Pill>
+        </div>
       </div>
-      <small>{lead.vehicle}</small>
+      <small>{lead.vehicle || "BYD Vehicle"}</small>
       <div className="prospect-meta">
-        <span>{lead.dealer}</span>
+        <span>{lead.dealer || "BYD Dealership"}</span>
         <b>{lead.score}/100</b>
       </div>
       <div className="progress">
@@ -227,7 +241,11 @@ export function Prospect({
       </div>
       <div className="next">
         <Bot size={13} />{" "}
-        {lead.tag === "Commitment"
+        {lead.testDrive?.confirmed
+          ? `Confirmed Test Drive: ${lead.testDrive.location || "Dealership"}`
+          : lead.assignedTo
+          ? `Rep: ${lead.assignedTo}`
+          : lead.tag === "Commitment"
           ? "Protect confirmed appointment"
           : "AI qualifying intent and availability"}
       </div>

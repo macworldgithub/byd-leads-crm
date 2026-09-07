@@ -61,6 +61,27 @@ function getColour(item: InventoryItem): string {
 }
 
 function PlatformBadge({ platform }: { platform?: string }) {
+  if (platform === "virtualyard") {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          background: "linear-gradient(135deg, #065f46 0%, #059669 100%)",
+          color: "#fff",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          padding: "2px 7px",
+          borderRadius: 4,
+          textTransform: "uppercase",
+        }}
+      >
+        VIRTUAL YARD
+      </span>
+    );
+  }
   if (platform === "autogate") {
     return (
       <span
@@ -166,13 +187,14 @@ export function Inventory() {
   }, [fetchInventory]);
 
   const autogateCount = items.filter((i) => i.platform === "autogate").length;
+  const virtualyardCount = items.filter((i) => i.platform === "virtualyard").length;
   const availableCount = items.filter((i) => i.status === "Available" || i.itemStatus === "InStock").length;
 
   return (
     <>
       <PageHeader
         title="Inventory Monitor"
-        subtitle={`${availableCount} in stock · ${autogateCount} from Autogate · ${items.length} total`}
+        subtitle={`${availableCount} in stock · ${autogateCount} Autogate · ${virtualyardCount} Virtual Yard · ${items.length} total`}
         action={
           <Button primary onClick={fetchInventory}>
             <RefreshCw size={16} /> Sync Now
@@ -210,6 +232,7 @@ export function Inventory() {
         </select>
         <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
           <option value="">All platforms</option>
+          <option value="virtualyard">Virtual Yard</option>
           <option value="autogate">Autogate</option>
           <option value="manual">Manual</option>
         </select>
@@ -231,6 +254,7 @@ export function Inventory() {
               icon: CheckCircle2,
               color: "#16a34a",
             },
+            { label: "Virtual Yard", value: virtualyardCount, icon: TrendingUp, color: "#059669" },
             { label: "Autogate", value: autogateCount, icon: TrendingUp, color: "#2563eb" },
             {
               label: "Enquiries",
