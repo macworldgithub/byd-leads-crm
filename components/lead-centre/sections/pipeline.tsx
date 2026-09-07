@@ -50,11 +50,7 @@ function StatCard({
   return (
     <div
       onClick={onClick}
-      className={`bg-white border rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all ${
-        active
-          ? "border-[#cf1d29] shadow-sm ring-1 ring-[#cf1d29]"
-          : "border-[#e2e2e2] hover:shadow-sm"
-      } ${onClick ? "cursor-pointer" : ""}`}
+      className={`bg-white border border-[#e2e2e2] rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all hover:shadow-sm ${onClick ? "cursor-pointer" : ""}`}
     >
       <div className={`rounded-lg p-2 shrink-0 ${colors[tone] ?? colors.red}`}>
         <Icon size={17} strokeWidth={1.8} />
@@ -230,7 +226,7 @@ export function Pipeline({
           value={leads.length}
           desc="Attachment prospects"
           active={!statusFilter && !search}
-          onClick={clearFilters}
+        // onClick={clearFilters}
         />
         <StatCard
           icon={Bot}
@@ -238,9 +234,9 @@ export function Pipeline({
           desc="AI qualifying"
           tone="teal"
           active={statusFilter === "qualification"}
-          onClick={() => {
-            setStatusFilter((prev) => (prev === "qualification" ? "" : "qualification"));
-          }}
+        // onClick={() => {
+        //   setStatusFilter((prev) => (prev === "qualification" ? "" : "qualification"));
+        // }}
         />
         <StatCard
           icon={CalendarDays}
@@ -248,9 +244,9 @@ export function Pipeline({
           desc="Commitments"
           tone="teal"
           active={statusFilter === "committed"}
-          onClick={() => {
-            setStatusFilter((prev) => (prev === "committed" ? "" : "committed"));
-          }}
+        // onClick={() => {
+        //   setStatusFilter((prev) => (prev === "committed" ? "" : "committed"));
+        // }}
         />
         <StatCard
           icon={Users}
@@ -258,9 +254,9 @@ export function Pipeline({
           desc="Human assisted"
           tone="amber"
           active={search.toLowerCase() === "human"}
-          onClick={() => {
-            setSearch((prev) => (prev === "Human" ? "" : "Human"));
-          }}
+        // onClick={() => {
+        //   setSearch((prev) => (prev === "Human" ? "" : "Human"));
+        // }}
         />
       </div>
 
