@@ -153,7 +153,7 @@ export function Dashboard({
     );
   }
 
-  const { stats, funnel, recentLeads } = data!;
+  const { stats, funnel, recentLeads, automationLogs, inventoryStats } = data!;
 
   const funnelSteps = [
     { label: "Imported", sub: "Autogate captured", Icon: Network, count: funnel.imported },
@@ -161,6 +161,18 @@ export function Dashboard({
     { label: "Qualified", sub: "Needs captured", Icon: Zap, count: funnel.qualified },
     { label: "Committed", sub: "Test drives", Icon: CalendarDays, count: funnel.committed },
   ];
+
+  const convSub = `${stats.inboundMessages ?? 0} inbound · ${stats.outboundMessages ?? 0} outbound`;
+
+  const logs =
+    automationLogs && automationLogs.length > 0
+      ? automationLogs
+      : [
+          { id: "1", title: "Demo Dataset Refreshed", meta: "◷ just now · Demo System" },
+          { id: "2", title: "AI Qualification Active", meta: "◷ 5m ago · Ava AI" },
+          { id: "3", title: "Callback Confirmed", meta: "◷ 1h ago · Ava AI" },
+          { id: "4", title: "Appointment Booked", meta: "◷ 2h ago · BYD Fairfield" },
+        ];
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
@@ -185,7 +197,7 @@ export function Dashboard({
           icon={MessageSquare}
           title="Conversation Activity"
           value={stats.conversationActivity}
-          desc="0 inbound · 0 outbound today"
+          desc={convSub}
           tone="slate"
           onClick={() => onNavigate?.("Conversations")}
         />
@@ -269,17 +281,11 @@ export function Dashboard({
             </h2>
           </div>
           <div className="flex flex-col gap-4">
-            {[
-              "Demo Dataset Refreshed",
-              "Callback Confirmed",
-              "Qualification Updated",
-              "Appointment Booked",
-              "Appointment Booked",
-            ].map((x, i) => (
+            {logs.map((item) => (
               <LogItem
-                key={x + i}
-                title={x}
-                meta={`◷ 4d ago · ${i ? "Ava AI" : "Demo System"}`}
+                key={item.id}
+                title={item.title}
+                meta={item.meta}
               />
             ))}
           </div>
@@ -308,7 +314,7 @@ export function Dashboard({
             </svg>
           </div>
           <span className="text-xs sm:text-sm text-[#46505f] truncate">
-            660 vehicles available from 1052 monitored records
+            {inventoryStats?.available ?? 660} vehicles available from {inventoryStats?.total ?? 1052} monitored records
           </span>
         </div>
         <div className="text-xs sm:text-sm text-[#46505f] sm:text-right whitespace-normal sm:whitespace-nowrap">

@@ -19,6 +19,8 @@ export interface DashboardData {
     appointments: number;
     conversationActivity: number;
     humanAssisted: number;
+    inboundMessages?: number;
+    outboundMessages?: number;
   };
   funnel: {
     imported: number;
@@ -27,6 +29,15 @@ export interface DashboardData {
     committed: number;
   };
   recentLeads: Lead[];
+  automationLogs?: {
+    id: string;
+    title: string;
+    meta: string;
+  }[];
+  inventoryStats?: {
+    available: number;
+    total: number;
+  };
 }
 
 export const getDashboard = () => request<DashboardData>("/dashboard");
@@ -72,11 +83,46 @@ export const updateLead = (id: string, data: Partial<Lead>) =>
 export const deleteLead = (id: string) =>
   request<{ message: string }>(`/leads/${id}`, { method: "DELETE" });
 
+export interface CsvImportResultItem {
+  name: string;
+  phone: string;
+  outcome: "imported" | "duplicate" | "invalid";
+  reason?: string;
+  leadId?: string;
+}
+
+export interface CsvImportResponse {
+  success: boolean;
+  imported: number;
+  duplicates: number;
+  invalid: number;
+  total: number;
+  results: CsvImportResultItem[];
+  leads: Lead[];
+}
+
+export const importLeadsCsv = (payload: {
+  leads: any[];
+  defaultDealer?: string;
+  sendSms?: boolean;
+}) =>
+  request<CsvImportResponse>("/leads/import-csv", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
 // ── Lead Filter Helpers ──────────────────────────────────────────────────────
 export const getLeadDealerships = () => request<string[]>("/leads/dealerships");
 export const getLeadStatuses = () => request<string[]>("/leads/statuses");
-export const getLeadStats = () =>
-  request<{ total: number; humanAssisted: number; aiQualifying: number; testDrives: number }>("/leads/stats");
+export const getLeadStats = (params?: Record<string, string>) => {
+  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+  return request<{
+    total: number;
+    humanAssisted: number;
+    aiQualifying: number;
+    testDrives: number;
+  }>(`/leads/stats${qs}`);
+};
 
 // ── Dealerships ──────────────────────────────────────────────────────────────
 export interface Dealership {

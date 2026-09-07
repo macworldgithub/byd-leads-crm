@@ -18,6 +18,7 @@ import {
   ModalField,
   ModalActions,
 } from "./lead-centre/shared";
+import { ImportCsvModal } from "./lead-centre/import-csv-modal";
 import { Network, Clock, Save, Loader2 } from "lucide-react";
 import {
   getDealerships,
@@ -72,9 +73,15 @@ export default function LeadCentre() {
   const [selectedProspect, setSelectedProspect] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Ref to trigger Settings page re-fetch after save
   const settingsRefreshRef = useRef<(() => void) | null>(null);
+
+  const triggerRefresh = () => {
+    setRefreshKey((k) => k + 1);
+    settingsRefreshRef.current?.();
+  };
 
   const close = () => {
     setModal(null);
@@ -142,6 +149,7 @@ export default function LeadCentre() {
       });
 
       close();
+      triggerRefresh();
       setSelectedProspect({
         _id: lead._id,
         id: lead._id,
@@ -186,6 +194,7 @@ export default function LeadCentre() {
       ({
         Dashboard: (
           <Dashboard
+            key={refreshKey}
             onNavigate={(section) => {
               setSelectedProspect(null);
               setActive(section);
@@ -195,18 +204,30 @@ export default function LeadCentre() {
         ),
         "Leads Pipeline": (
           <Pipeline
+            key={refreshKey}
             onModal={setModal}
             onSelectProspect={(p) => setSelectedProspect(p)}
           />
         ),
         Conversations: (
-          <Conversations onSelectProspect={(p) => setSelectedProspect(p)} />
+          <Conversations
+            key={refreshKey}
+            onSelectProspect={(p) => setSelectedProspect(p)}
+          />
         ),
         Inventory: <Inventory />,
         Appointments: (
-          <Appointments onSelectProspect={(p) => setSelectedProspect(p)} />
+          <Appointments
+            key={refreshKey}
+            onSelectProspect={(p) => setSelectedProspect(p)}
+          />
         ),
-        Compliance: <Compliance onSelectProspect={(p) => setSelectedProspect(p)} />,
+        Compliance: (
+          <Compliance
+            key={refreshKey}
+            onSelectProspect={(p) => setSelectedProspect(p)}
+          />
+        ),
         Settings: (
           <SettingsPage
             onAdd={() => {
@@ -218,7 +239,7 @@ export default function LeadCentre() {
         ),
       }) as Record<string, React.ReactNode>
     )[active];
-  }, [active, openEdit, selectedProspect]);
+  }, [active, openEdit, selectedProspect, refreshKey]);
 
   return (
     <div className="app-shell">
@@ -238,86 +259,97 @@ export default function LeadCentre() {
         <div className="content">{content}</div>
       </main>
 
-      {/* ── Add / Edit Test Prospect ── */}
+      {/* ── Add Prospect ── */}
       {modal === "prospect" && (
-        <Modal
-          title="Add Test Prospect"
-          description="Manually create a prospect to test the full SMS qualification flow. Test prospects always run in simulation — no real SMS is delivered."
-          onClose={close}
-        >
+        <Modal title="Add Prospect" onClose={close}>
           <div className="modal-form">
-            <ModalField
-              label="First name *"
-              placeholder="e.g. Alex"
-              value={prospectForm.firstName}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, firstName: e.target.value }))
-              }
-            />
-            <ModalField
-              label="Last name"
-              placeholder="e.g. Martinez"
-              value={prospectForm.lastName}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, lastName: e.target.value }))
-              }
-            />
-            <ModalField
-              label="Mobile number *"
-              placeholder="0412 345 678"
-              value={prospectForm.phone}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, phone: e.target.value }))
-              }
-            />
-            <ModalField
-              label="Email"
-              placeholder="alex@example.com"
-              value={prospectForm.email}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, email: e.target.value }))
-              }
-            />
-            <ModalField
-              label="Dealership *"
-              placeholder="BYD Fairfield VIC"
-              value={prospectForm.dealership}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, dealership: e.target.value }))
-              }
-            />
-            <ModalField
-              label="Vehicle of interest"
-              placeholder="2025 BYD ATTO 1"
-              value={prospectForm.vehicle}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, vehicle: e.target.value }))
-              }
-            />
-            <ModalField
-              label="Enquiry description"
-              placeholder="e.g. 2025 BYD ATTO 1 with BYD Fairfield VIC"
-              value={prospectForm.enquiryDesc}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, enquiryDesc: e.target.value }))
-              }
-              wide
-            />
-            <ModalField
-              label="Enquiry note (what the prospect asked)"
-              placeholder="e.g. Is this still available?"
-              value={prospectForm.enquiryNote}
-              onChange={(e) =>
-                setProspectForm((prev) => ({ ...prev, enquiryNote: e.target.value }))
-              }
-              wide
-            />
+            <label>
+              <span>First Name</span>
+              <input
+                value={prospectForm.firstName}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, firstName: e.target.value }))
+                }
+                placeholder="e.g. Sarah"
+              />
+            </label>
+            <label>
+              <span>Last Name</span>
+              <input
+                value={prospectForm.lastName}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, lastName: e.target.value }))
+                }
+                placeholder="e.g. Jenkins"
+              />
+            </label>
+            <label>
+              <span>Mobile Phone</span>
+              <input
+                value={prospectForm.phone}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, phone: e.target.value }))
+                }
+                placeholder="e.g. 0412 345 678"
+              />
+            </label>
+            <label>
+              <span>Email</span>
+              <input
+                value={prospectForm.email}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, email: e.target.value }))
+                }
+                placeholder="e.g. sarah.j@example.com"
+              />
+            </label>
+            <label>
+              <span>Dealership</span>
+              <input
+                value={prospectForm.dealership}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, dealership: e.target.value }))
+                }
+                placeholder="e.g. BYD Fairfield VIC"
+              />
+            </label>
+            <label>
+              <span>Vehicle of Interest</span>
+              <input
+                value={prospectForm.vehicle}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, vehicle: e.target.value }))
+                }
+                placeholder="e.g. 2025 BYD SHARK 6"
+              />
+            </label>
+            <label className="wide-field">
+              <span>Enquiry Description</span>
+              <input
+                value={prospectForm.enquiryDesc}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, enquiryDesc: e.target.value }))
+                }
+                placeholder="e.g. Interested in test drive this Saturday"
+              />
+            </label>
+            <label className="wide-field">
+              <span>Internal Notes</span>
+              <input
+                value={prospectForm.enquiryNote}
+                onChange={(e) =>
+                  setProspectForm((p) => ({ ...p, enquiryNote: e.target.value }))
+                }
+                placeholder="e.g. Pre-approved finance, trade-in: 2019 RAV4"
+              />
+            </label>
             <div
-              className="simulation"
-              style={{ cursor: "pointer", userSelect: "none" }}
-              onClick={() =>
-                setProspectForm((prev) => ({ ...prev, sendSms: !prev.sendSms }))
-              }
+              className="simulation wide-field"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
             >
               <div>
                 <b>Send opening SMS immediately</b>
@@ -325,9 +357,6 @@ export default function LeadCentre() {
                   Starts the AI qualification conversation as soon as the prospect is created
                 </small>
               </div>
-              {/* <span className={`toggle ${prospectForm.sendSms ? "on" : ""}`}>
-                <i />
-              </span> */}
             </div>
           </div>
           {saveError && (
@@ -342,34 +371,12 @@ export default function LeadCentre() {
         </Modal>
       )}
 
-      {/* ── CSV Import ── */}
-      {modal === "csv" && (
-        <Modal
-          title="Import Prospects from CSV"
-          description="Duplicates are detected automatically by mobile number (and Autogate ID) — only new prospects are imported. Recognised columns: First Name / Name, Last Name, Mobile, Email, Dealership, Vehicle, Notes, Suburb, State, Lead ID."
-          onClose={close}
-        >
-          <div className="upload-zone">
-            <Network size={27} />
-            <b>Click to choose a CSV file</b>
-            <small>Max 500 rows per import</small>
-          </div>
-          <ModalField
-            label="Default dealership (for rows without a dealership column) *"
-            placeholder="Select dealership"
-          />
-          <div className="simulation">
-            <div>
-              <b>Send opening SMS to imported prospects</b>
-              <small>Starts AI qualification for each newly imported lead (simulation-safe)</small>
-            </div>
-            <span className="toggle">
-              <i />
-            </span>
-          </div>
-          <ModalActions onClose={close} primary="Import" />
-        </Modal>
-      )}
+      {/* ── CSV Import Modal ── */}
+      <ImportCsvModal
+        isOpen={modal === "csv"}
+        onClose={close}
+        onSuccess={triggerRefresh}
+      />
 
       {/* ── Add Dealership ── */}
       {modal === "add-dealer" && (

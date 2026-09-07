@@ -32,11 +32,15 @@ function StatCard({
   value,
   desc,
   tone = "red",
+  onClick,
+  active,
 }: {
   icon: any;
   value: number;
   desc: string;
   tone?: "red" | "teal" | "amber";
+  onClick?: () => void;
+  active?: boolean;
 }) {
   const colors: Record<string, string> = {
     red: "bg-red-50 text-red-600",
@@ -44,7 +48,14 @@ function StatCard({
     amber: "bg-amber-50 text-amber-500",
   };
   return (
-    <div className="bg-white border border-[#e2e2e2] rounded-xl p-3 sm:p-4 flex items-center gap-3 hover:shadow-sm transition-shadow">
+    <div
+      onClick={onClick}
+      className={`bg-white border rounded-xl p-3 sm:p-4 flex items-center gap-3 transition-all ${
+        active
+          ? "border-[#cf1d29] shadow-sm ring-1 ring-[#cf1d29]"
+          : "border-[#e2e2e2] hover:shadow-sm"
+      } ${onClick ? "cursor-pointer" : ""}`}
+    >
       <div className={`rounded-lg p-2 shrink-0 ${colors[tone] ?? colors.red}`}>
         <Icon size={17} strokeWidth={1.8} />
       </div>
@@ -214,10 +225,43 @@ export function Pipeline({
 
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={Users} value={leads.length} desc="Active prospects" />
-        <StatCard icon={Bot} value={aiQualifying} desc="AI qualifying" tone="teal" />
-        <StatCard icon={CalendarDays} value={testDrives} desc="Commitments" tone="teal" />
-        <StatCard icon={Users} value={humanAssisted} desc="Human assisted" tone="amber" />
+        <StatCard
+          icon={Users}
+          value={leads.length}
+          desc="Attachment prospects"
+          active={!statusFilter && !search}
+          onClick={clearFilters}
+        />
+        <StatCard
+          icon={Bot}
+          value={aiQualifying}
+          desc="AI qualifying"
+          tone="teal"
+          active={statusFilter === "qualification"}
+          onClick={() => {
+            setStatusFilter((prev) => (prev === "qualification" ? "" : "qualification"));
+          }}
+        />
+        <StatCard
+          icon={CalendarDays}
+          value={testDrives}
+          desc="Commitments"
+          tone="teal"
+          active={statusFilter === "committed"}
+          onClick={() => {
+            setStatusFilter((prev) => (prev === "committed" ? "" : "committed"));
+          }}
+        />
+        <StatCard
+          icon={Users}
+          value={humanAssisted}
+          desc="Human assisted"
+          tone="amber"
+          active={search.toLowerCase() === "human"}
+          onClick={() => {
+            setSearch((prev) => (prev === "Human" ? "" : "Human"));
+          }}
+        />
       </div>
 
       {/* ── Toolbar ── */}
