@@ -75,6 +75,7 @@ export function Pipeline({
   const [search, setSearch] = useState("");
   const [dealerFilter, setDealerFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [platformFilter, setPlatformFilter] = useState("");
   const [dealerships, setDealerships] = useState<string[]>([]);
 
   // Debounce timer for search
@@ -109,6 +110,7 @@ export function Pipeline({
     if (debouncedSearch) params.q = debouncedSearch;
     if (dealerFilter) params.dealer = dealerFilter;
     if (statusFilter) params.status = statusFilter;
+    if (platformFilter) params.platform = platformFilter;
 
     getLeads(params)
       .then((data) => {
@@ -121,19 +123,20 @@ export function Pipeline({
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [debouncedSearch, dealerFilter, statusFilter]);
+  }, [debouncedSearch, dealerFilter, statusFilter, platformFilter]);
 
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
 
-  const hasActiveFilters = !!debouncedSearch || !!dealerFilter || !!statusFilter;
+  const hasActiveFilters = !!debouncedSearch || !!dealerFilter || !!statusFilter || !!platformFilter;
 
   const clearFilters = () => {
     setSearch("");
     setDebouncedSearch("");
     setDealerFilter("");
     setStatusFilter("");
+    setPlatformFilter("");
   };
 
   const byStage = (stage: string) => leads.filter((l) => l.stage === stage);
@@ -257,6 +260,17 @@ export function Pipeline({
                 {dealer}
               </option>
             ))}
+          </select>
+
+          {/* Platform */}
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="w-full sm:w-[160px] text-sm border border-[#e2e2e2] rounded-lg px-3 py-2 bg-white outline-none cursor-pointer focus:border-[#cf1d29]"
+          >
+            <option value="">All platforms</option>
+            <option value="autogate">Autogate</option>
+            <option value="manual">Manual</option>
           </select>
 
           {/* All Statuses */}
@@ -384,6 +398,9 @@ export function Pipeline({
                     <div className="flex flex-wrap gap-2 items-center">
                       <Pill tone={l.tag === "Commitment" ? "purple" : "amber"}>{l.tag}</Pill>
                       <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
+                      {l.platform === "autogate" && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1d4ed8", letterSpacing: "0.05em" }}>AUTOGATE</span>
+                      )}
                       <span className="text-xs text-[#657083] ml-auto">{l.receivedDaysAgo}d ago</span>
                     </div>
                     <small className="text-xs text-[#657083]">{l.source} · {l.dealer}</small>
@@ -426,7 +443,12 @@ export function Pipeline({
                           <Pill tone={l.tag === "Commitment" ? "purple" : "amber"}>{l.tag}</Pill>
                         </td>
                         <td className="px-4 py-3 border-b border-[#e2e2e2]">
-                          <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <Pill tone={CONTROL_TONES[l.control] ?? "amber"}>{l.control}</Pill>
+                            {l.platform === "autogate" && (
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1d4ed8", letterSpacing: "0.05em", width: "fit-content" }}>AUTOGATE</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 border-b border-[#e2e2e2] text-right">
                           <b className="text-sm font-bold">{l.score}</b>

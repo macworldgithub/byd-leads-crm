@@ -1,4 +1,5 @@
-const BASE = "https://byd-leads-backend.vercel.app/api";
+// const BASE = "https://byd-leads-backend.vercel.app/api";
+const BASE = "http://localhost:4001/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -54,6 +55,32 @@ export interface Lead {
   price: string;
   paintColor: string;
   createdAt: string;
+  // Platform
+  platform?: "manual" | "autogate" | "sms";
+  // Autogate extras
+  autogateId?: string;
+  autogateLeadId?: string;
+  leadIdShort?: string;
+  homePhone?: string;
+  customerType?: string;
+  dealerName?: string;
+  priority?: string;
+  leadType?: string;
+  leadSource?: string;
+  opportunity?: string;
+  specificationId?: string;
+  multipleVehicleEnquiries?: boolean;
+  isArchived?: boolean;
+  leadStage?: string;
+  tags?: Array<{ label: string; friendlyLabel: string }>;
+  leadStats?: {
+    emailCount: number;
+    smsCount: number;
+    phoneCallCount: number;
+    appointmentCount: number;
+  };
+  leadCreatedDate?: string;
+  allocatedPersonFullName?: string;
 }
 
 export const getLeads = (params?: Record<string, string>) => {
@@ -113,6 +140,7 @@ export const deleteDealership = (id: string) =>
 // ── Inventory ────────────────────────────────────────────────────────────────
 export interface InventoryItem {
   _id: string;
+  // Legacy fields
   stock: string;
   model: string;
   paint: string;
@@ -120,6 +148,61 @@ export interface InventoryItem {
   status: string;
   price: string;
   lastSeen: string;
+  // Platform
+  platform?: "manual" | "autogate";
+  // Autogate rich fields
+  identifier?: string;
+  networkId?: string;
+  legacyId?: string;
+  itemType?: string;
+  condition?: string;
+  itemStatus?: string;
+  title?: string | null;
+  firstPhotoUrl?: string | null;
+  priceData?: {
+    ui: number;
+    currency: string;
+    label: string;
+  };
+  odometer?: {
+    value: number;
+    unit: string;
+  };
+  registration?: {
+    rego?: string | null;
+    vin?: string | null;
+    hin?: string | null;
+  };
+  specifications?: {
+    make?: string | null;
+    model?: string | null;
+    badge?: string | null;
+    series?: string | null;
+    year?: number | null;
+    colour?: string | null;
+    manufacturerColour?: string | null;
+  };
+  listingStats?: {
+    enquiryCount: number;
+    watchers: number;
+    retailSearchCount: number;
+    retailViewCount: number;
+    photoCount: number;
+    healthScore: number;
+  };
+  lmStats?: {
+    averageDaysOnMarket: number;
+    averageOdometer: number;
+    marketPercentage: number;
+    averageDriveAwayPrice: number;
+    averageWatchers: number;
+    daysOnMarket: number;
+    marketOnline: number;
+    priceRankDap: number;
+    lastUpdated?: string;
+  };
+  onCarsalesNetwork?: boolean | null;
+  sellerIdentifier?: string | null;
 }
 
 export const getInventory = (params?: Record<string, string>) => {
