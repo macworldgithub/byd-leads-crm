@@ -2,6 +2,7 @@
 
 import { MessageSquare, Bot, Activity, Search, Loader2 } from "lucide-react";
 import { Pill } from "../shared";
+import { Pagination } from "../pagination";
 import { getConversations, getLeads, type Conversation } from "@/lib/api";
 import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-mapper";
 import { useState, useEffect } from "react";
@@ -19,13 +20,20 @@ export function Conversations({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
+
   useEffect(() => {
     setLoading(true);
     const params: Record<string, string> = {};
     if (filter !== "all") params.control = filter;
     if (search) params.q = search;
     getConversations(params)
-      .then(setConversations)
+      .then((data) => {
+        setConversations(data);
+        setPage(1);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [filter, search]);
@@ -64,6 +72,9 @@ export function Conversations({
     );
   };
 
+  const paginatedConvs = conversations.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(conversations.length / pageSize) || 1;
+
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
       {/* ── Page Header ── */}
@@ -71,7 +82,7 @@ export function Conversations({
         <div>
           <h1 className="text-2xl font-bold m-0 leading-tight">Conversations</h1>
           <p className="text-sm text-[#657083] mt-1">
-            Every SMS thread, fully logged for visibility and ACMA audit
+            {conversations.length} SMS thread{conversations.length === 1 ? "" : "s"}, fully logged for visibility and ACMA audit
           </p>
         </div>
 
@@ -85,7 +96,10 @@ export function Conversations({
           ).map(({ key, icon: Icon, label }) => (
             <button
               key={key}
-              onClick={() => setFilter(key)}
+              onClick={() => {
+                setFilter(key);
+                setPage(1);
+              }}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold transition-colors ${
                 filter === key
                   ? "bg-[#cf1d29] text-white"
@@ -104,7 +118,10 @@ export function Conversations({
         <Search size={16} className="text-[#657083] shrink-0" />
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search conversations..."
           className="flex-1 min-w-0 text-sm outline-none bg-transparent placeholder:text-[#aaa]"
         />
@@ -128,45 +145,58 @@ export function Conversations({
           {conversations.length === 0 ? (
             <div className="text-center py-16 text-[#657083] text-sm">No conversations found.</div>
           ) : (
-            conversations.map((c) => (
-              <div
-                key={c._id}
-                onClick={() => handleConversationClick(c)}
-                className="flex flex-col sm:flex-row sm:items-start gap-3 px-4 py-4 border-b border-[#e2e2e2] last:border-0 hover:bg-[#f9f9f9] cursor-pointer transition-colors"
-              >
-                {/* Avatar */}
-                <div className="w-10 h-10 rounded-full bg-[#f0f0f0] flex items-center justify-center text-xs font-bold text-[#444] shrink-0">
-                  {c.initials || c.prospectName.slice(0, 2).toUpperCase()}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <b className="text-sm font-semibold">{c.prospectName}</b>
-                    <Pill tone={c.status === "Commitment" ? "purple" : "amber"}>{c.status}</Pill>
-                    <Pill tone={c.control.toLowerCase().includes("human") ? "amber" : "teal"}>
-                      {c.control}
-                    </Pill>
+            <>
+              {paginatedConvs.map((c) => (
+                <div
+                  key={c._id}
+                  onClick={() => handleConversationClick(c)}
+                  className="flex flex-col sm:flex-row sm:items-start gap-3 px-4 py-4 border-b border-[#e2e2e2] last:border-0 hover:bg-[#f9f9f9] cursor-pointer transition-colors"
+                >
+                  {/* Avatar */}
+                  <div className="w-10 h-10 rounded-full bg-[#f0f0f0] flex items-center justify-center text-xs font-bold text-[#444] shrink-0">
+                    {c.initials || c.prospectName.slice(0, 2).toUpperCase()}
                   </div>
-                  <p className="text-sm text-[#555] leading-snug line-clamp-2">
-                    → {c.lastMessage}
-                  </p>
-                  <div className="flex items-center gap-3 mt-2 sm:hidden">
-                    <span className="text-xs text-[#657083]">{c.phone}</span>
-                    <span className="text-xs text-[#657083]">{c.daysAgo}d ago</span>
-                    <span className="text-xs text-[#657083]">{c.msgCount} msgs</span>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <b className="text-sm font-semibold">{c.prospectName}</b>
+                      <Pill tone={c.status === "Commitment" ? "purple" : "amber"}>{c.status}</Pill>
+                      <Pill tone={c.control.toLowerCase().includes("human") ? "amber" : "teal"}>
+                        {c.control}
+                      </Pill>
+                    </div>
+                    <p className="text-sm text-[#555] leading-snug line-clamp-2">
+                      → {c.lastMessage}
+                    </p>
+                    <div className="flex items-center gap-3 mt-2 sm:hidden">
+                      <span className="text-xs text-[#657083]">{c.phone}</span>
+                      <span className="text-xs text-[#657083]">{c.daysAgo}d ago</span>
+                      <span className="text-xs text-[#657083]">{c.msgCount} msgs</span>
+                    </div>
+                  </div>
+
+                  {/* Desktop meta */}
+                  <div className="hidden sm:flex flex-col items-end shrink-0 text-right gap-0.5">
+                    <span className="text-xs font-medium text-[#333]">{c.phone}</span>
+                    <small className="text-xs text-[#657083]">
+                      {c.daysAgo}d ago · {c.msgCount} msgs
+                    </small>
                   </div>
                 </div>
-
-                {/* Desktop meta */}
-                <div className="hidden sm:flex flex-col items-end shrink-0 text-right gap-0.5">
-                  <span className="text-xs font-medium text-[#333]">{c.phone}</span>
-                  <small className="text-xs text-[#657083]">
-                    {c.daysAgo}d ago · {c.msgCount} msgs
-                  </small>
-                </div>
+              ))}
+              <div className="px-4 py-2 bg-white">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={conversations.length}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                  itemLabel="conversations"
+                />
               </div>
-            ))
+            </>
           )}
         </div>
       )}

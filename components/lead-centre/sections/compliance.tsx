@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ban, Check, Clock3, FileCheck2, ShieldCheck, Loader2 } from "lucide-react";
 import { Card, PageHeader, Icon } from "../shared";
+import { Pagination } from "../pagination";
 import { getAuditTrails, getLead, type AuditTrail } from "@/lib/api";
 import { mapLeadToProspect } from "@/lib/prospect-mapper";
 
@@ -27,6 +28,10 @@ export function Compliance({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   useEffect(() => {
     getAuditTrails()
       .then(setTrails)
@@ -43,6 +48,9 @@ export function Compliance({
       console.error("Failed to load lead from audit trail", err);
     }
   };
+
+  const paginatedTrails = trails.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(trails.length / pageSize) || 1;
 
   return (
     <>
@@ -135,20 +143,34 @@ export function Compliance({
           ) : trails.length === 0 ? (
             <div style={{ padding: "20px", color: "gray", fontSize: "14px" }}>No audit trails found.</div>
           ) : (
-            trails.map((trail) => (
-              <div 
-                className="audit-row" 
-                key={trail._id} 
-                onClick={() => handleTrailClick(trail.leadId)}
-                style={{ cursor: trail.leadId ? "pointer" : "default" }}
-              >
-                <i />
-                <div>
-                  <b>{trail.message}</b>
-                  <small>{trail.actor} · {timeAgo(trail.createdAt)}</small>
+            <>
+              {paginatedTrails.map((trail) => (
+                <div 
+                  className="audit-row" 
+                  key={trail._id} 
+                  onClick={() => handleTrailClick(trail.leadId)}
+                  style={{ cursor: trail.leadId ? "pointer" : "default" }}
+                >
+                  <i />
+                  <div>
+                    <b>{trail.message}</b>
+                    <small>{trail.actor} · {timeAgo(trail.createdAt)}</small>
+                  </div>
                 </div>
+              ))}
+              <div style={{ padding: "8px 0 0" }}>
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={trails.length}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                  pageSizeOptions={[5, 10, 20]}
+                  itemLabel="logs"
+                />
               </div>
-            ))
+            </>
           )}
         </Card>
       </div>

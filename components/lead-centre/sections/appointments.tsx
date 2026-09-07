@@ -2,6 +2,7 @@
 
 import { ChevronDown, Check, Loader2 } from "lucide-react";
 import { Card, Pill, PageHeader } from "../shared";
+import { Pagination } from "../pagination";
 import { getAppointments, updateAppointment, getLeads, type Appointment } from "@/lib/api";
 import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-mapper";
 import { useState, useEffect } from "react";
@@ -18,6 +19,10 @@ export function Appointments({
   const [error, setError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(15);
 
   useEffect(() => {
     getAppointments()
@@ -75,11 +80,14 @@ export function Appointments({
     );
   };
 
+  const paginatedAppts = appointments.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(appointments.length / pageSize) || 1;
+
   return (
     <>
       <PageHeader
         title="Appointments"
-        subtitle="Test drives and showroom visits booked by the AI or your team"
+        subtitle={`${appointments.length} test drives and showroom visits booked by the AI or your team`}
       />
 
       {loading && (
@@ -92,7 +100,7 @@ export function Appointments({
       )}
 
       {!loading && !error && (
-        <Card className="table-wrap appointments">
+        <Card className="table-wrap appointments" style={{ padding: 0 }}>
           <table>
             <thead>
               <tr>
@@ -109,7 +117,7 @@ export function Appointments({
                   </td>
                 </tr>
               ) : (
-                appointments.map((appt) => (
+                paginatedAppts.map((appt) => (
                   <tr
                     key={appt._id}
                     onClick={() => handleAppointmentClick(appt)}
@@ -166,6 +174,17 @@ export function Appointments({
               )}
             </tbody>
           </table>
+          <div style={{ padding: "0 16px 12px" }}>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={appointments.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="appointments"
+            />
+          </div>
         </Card>
       )}
     </>

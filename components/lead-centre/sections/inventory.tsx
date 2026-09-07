@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Card, Button, Pill, PageHeader } from "../shared";
+import { Pagination } from "../pagination";
 import { getInventory, type InventoryItem } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 
@@ -163,6 +164,10 @@ export function Inventory() {
   const [platformFilter, setPlatformFilter] = useState("");
   const [networkFilter, setNetworkFilter] = useState("");
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const fetchInventory = useCallback(() => {
     setLoading(true);
     const params: Record<string, string> = {};
@@ -190,6 +195,30 @@ export function Inventory() {
   const virtualyardCount = items.filter((i) => i.platform === "virtualyard").length;
   const availableCount = items.filter((i) => i.status === "Available" || i.itemStatus === "InStock").length;
 
+  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = Math.ceil(items.length / pageSize) || 1;
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setPage(1);
+  };
+  const handleModelChange = (val: string) => {
+    setModelFilter(val);
+    setPage(1);
+  };
+  const handleConditionChange = (val: string) => {
+    setConditionFilter(val);
+    setPage(1);
+  };
+  const handlePlatformChange = (val: string) => {
+    setPlatformFilter(val);
+    setPage(1);
+  };
+  const handleNetworkChange = (val: string) => {
+    setNetworkFilter(val);
+    setPage(1);
+  };
+
   return (
     <>
       <PageHeader
@@ -207,11 +236,11 @@ export function Inventory() {
         <Search size={17} />
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search stock #, model, VIN, colour, rego..."
           style={{ flex: 1, minWidth: 180 }}
         />
-        <select value={modelFilter} onChange={(e) => setModelFilter(e.target.value)}>
+        <select value={modelFilter} onChange={(e) => handleModelChange(e.target.value)}>
           <option value="">All models</option>
           <option>ATTO 1</option>
           <option>ATTO 2</option>
@@ -224,19 +253,19 @@ export function Inventory() {
           <option>SEALION 8</option>
           <option>SHARK 6</option>
         </select>
-        <select value={conditionFilter} onChange={(e) => setConditionFilter(e.target.value)}>
+        <select value={conditionFilter} onChange={(e) => handleConditionChange(e.target.value)}>
           <option value="">All conditions</option>
           <option>Demo</option>
           <option>Used</option>
           <option>New</option>
         </select>
-        <select value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
+        <select value={platformFilter} onChange={(e) => handlePlatformChange(e.target.value)}>
           <option value="">All platforms</option>
           <option value="virtualyard">Virtual Yard</option>
           <option value="autogate">Autogate</option>
           <option value="manual">Manual</option>
         </select>
-        <select value={networkFilter} onChange={(e) => setNetworkFilter(e.target.value)}>
+        <select value={networkFilter} onChange={(e) => handleNetworkChange(e.target.value)}>
           <option value="">Carsales: All</option>
           <option value="published">Published</option>
           <option value="unpublished">Not Published</option>
@@ -329,7 +358,7 @@ export function Inventory() {
                   </td>
                 </tr>
               ) : (
-                items.map((r) => {
+                paginatedItems.map((r) => {
                   const vehicleTitle = getVehicleTitle(r);
                   const colour = getColour(r);
                   const price = formatPrice(r);
@@ -522,6 +551,17 @@ export function Inventory() {
               )}
             </tbody>
           </table>
+          <div style={{ padding: "0 16px 12px" }}>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={items.length}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="vehicles"
+            />
+          </div>
         </Card>
       )}
     </>

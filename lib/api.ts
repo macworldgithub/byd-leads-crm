@@ -110,9 +110,30 @@ export interface Lead {
   allocatedPersonFullName?: string;
 }
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  totalPages: number;
+  limit: number;
+}
+
 export const getLeads = (params?: Record<string, string>) => {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
   return request<Lead[]>(`/leads${qs}`);
+};
+
+export const getPaginatedLeads = (params?: Record<string, string | number>) => {
+  const queryObj: Record<string, string> = { paginated: "true" };
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") {
+        queryObj[k] = String(v);
+      }
+    });
+  }
+  const qs = "?" + new URLSearchParams(queryObj).toString();
+  return request<PaginatedResult<Lead>>(`/leads${qs}`);
 };
 
 export const getLead = (id: string) => request<Lead>(`/leads/${id}`);
@@ -270,6 +291,19 @@ export interface InventoryItem {
 export const getInventory = (params?: Record<string, string>) => {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
   return request<InventoryItem[]>(`/inventory${qs}`);
+};
+
+export const getPaginatedInventory = (params?: Record<string, string | number>) => {
+  const queryObj: Record<string, string> = { paginated: "true" };
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") {
+        queryObj[k] = String(v);
+      }
+    });
+  }
+  const qs = "?" + new URLSearchParams(queryObj).toString();
+  return request<PaginatedResult<InventoryItem>>(`/inventory${qs}`);
 };
 
 // ── Conversations ────────────────────────────────────────────────────────────

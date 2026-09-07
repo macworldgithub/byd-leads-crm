@@ -15,7 +15,15 @@ import {
   XCircle,
 } from "lucide-react";
 import { Pill, Prospect } from "../shared";
-import { getLeads, getLeadDealerships, getLeadStatuses, type Lead } from "@/lib/api";
+import { Pagination } from "../pagination";
+import {
+  getLeads,
+  getPaginatedLeads,
+  getLeadDealerships,
+  getLeadStatuses,
+  getLeadStats,
+  type Lead,
+} from "@/lib/api";
 import { useState, useEffect, useCallback, useRef } from "react";
 
 const STATUS_OPTIONS = [
@@ -56,7 +64,7 @@ function StatCard({
         <Icon size={17} strokeWidth={1.8} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-2xl font-bold leading-none mb-0.5">{value}</div>
+        <div className="text-2xl font-bold leading-none mb-0.5">{value.toLocaleString()}</div>
         <p className="text-xs text-[#657083] truncate">{desc}</p>
       </div>
       <ChevronRight size={16} className="text-[#ccc] shrink-0" />
@@ -85,6 +93,20 @@ export function Pipeline({
   const [platformFilter, setPlatformFilter] = useState("");
   const [dealerships, setDealerships] = useState<string[]>([]);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalLeads, setTotalLeads] = useState(0);
+
+  // Overall statistics for hero & stat cards
+  const [stats, setStats] = useState({
+    total: 0,
+    humanAssisted: 0,
+    aiQualifying: 0,
+    testDrives: 0,
+  });
+
   // Debounce timer for search
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -94,43 +116,86 @@ export function Pipeline({
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
       setDebouncedSearch(search);
+      setPage(1);
     }, 300);
     return () => {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, [search]);
 
+  // Reset page when filters change
+  const handleDealerFilterChange = (val: string) => {
+    setDealerFilter(val);
+    setPage(1);
+  };
+  const handleStatusFilterChange = (val: string) => {
+    setStatusFilter(val);
+    setPage(1);
+  };
+  const handlePlatformFilterChange = (val: string) => {
+    setPlatformFilter(val);
+    setPage(1);
+  };
+
   // Load dealerships for dropdown
   useEffect(() => {
     getLeadDealerships()
       .then(setDealerships)
-      .catch(() => {
-        // Fallback: extract from leads
-      });
+      .catch(() => {});
   }, []);
 
   const fetchLeads = useCallback(() => {
     setLoading(true);
     setError(null);
 
-    const params: Record<string, string> = {};
-    if (debouncedSearch) params.q = debouncedSearch;
-    if (dealerFilter) params.dealer = dealerFilter;
-    if (statusFilter) params.status = statusFilter;
-    if (platformFilter) params.platform = platformFilter;
+    const filterParams: Record<string, string> = {};
+    if (debouncedSearch) filterParams.q = debouncedSearch;
+    if (dealerFilter) filterParams.dealer = dealerFilter;
+    if (statusFilter) filterParams.status = statusFilter;
+    if (platformFilter) filterParams.platform = platformFilter;
 
-    getLeads(params)
-      .then((data) => {
-        setLeads(data);
-        // Also update dealerships from data if API failed
-        if (dealerships.length === 0) {
-          const dealers = Array.from(new Set(data.map((l) => l.dealer))).filter(Boolean).sort();
-          setDealerships(dealers);
-        }
+    // Fetch stats in parallel
+    getLeadStats(filterParams)
+      .then(setStats)
+      .catch(() => {});
+
+    if (viewMode === "list") {
+      getPaginatedLeads({
+        ...filterParams,
+        page,
+        limit: pageSize,
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [debouncedSearch, dealerFilter, statusFilter, platformFilter]);
+        .then((res) => {
+          setLeads(res.data);
+          setTotalLeads(res.total);
+          setTotalPages(res.totalPages);
+          if (dealerships.length === 0) {
+            const dealers = Array.from(new Set(res.data.map((l) => l.dealer))).filter(Boolean).sort();
+            setDealerships(dealers);
+          }
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+    } else {
+      // In board view, load top active leads (up to 150)
+      getPaginatedLeads({
+        ...filterParams,
+        page: 1,
+        limit: 150,
+      })
+        .then((res) => {
+          setLeads(res.data);
+          setTotalLeads(res.total);
+          setTotalPages(res.totalPages);
+          if (dealerships.length === 0) {
+            const dealers = Array.from(new Set(res.data.map((l) => l.dealer))).filter(Boolean).sort();
+            setDealerships(dealers);
+          }
+        })
+        .catch((err) => setError(err.message))
+        .finally(() => setLoading(false));
+    }
+  }, [debouncedSearch, dealerFilter, statusFilter, platformFilter, page, pageSize, viewMode]);
 
   useEffect(() => {
     fetchLeads();
@@ -144,6 +209,7 @@ export function Pipeline({
     setDealerFilter("");
     setStatusFilter("");
     setPlatformFilter("");
+    setPage(1);
   };
 
   const byStage = (stage: string) => leads.filter((l) => l.stage === stage);
@@ -176,13 +242,13 @@ export function Pipeline({
       <div className="bg-gray-900 text-white rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="text-[10px] tracking-widest font-bold text-gray-400 uppercase mb-1">
-            Autogate Demonstration
+            CRM Pipeline
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold m-0 leading-tight">
             Lead journey board
           </h1>
           <p className="text-sm text-gray-300 mt-1">
-            {leads.length} active prospects · AI qualification through to dealership commitment
+            {(stats.total || totalLeads).toLocaleString()} active prospects · AI qualification through to dealership commitment
           </p>
         </div>
 
@@ -226,40 +292,30 @@ export function Pipeline({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           icon={Users}
-          value={leads.length}
+          value={stats.total || totalLeads}
           desc="Attachment prospects"
           active={!statusFilter && !search}
-        // onClick={clearFilters}
         />
         <StatCard
           icon={Bot}
-          value={aiQualifying}
+          value={stats.aiQualifying}
           desc="AI qualifying"
           tone="teal"
           active={statusFilter === "qualification"}
-        // onClick={() => {
-        //   setStatusFilter((prev) => (prev === "qualification" ? "" : "qualification"));
-        // }}
         />
         <StatCard
           icon={CalendarDays}
-          value={testDrives}
+          value={stats.testDrives}
           desc="Commitments"
           tone="teal"
           active={statusFilter === "committed"}
-        // onClick={() => {
-        //   setStatusFilter((prev) => (prev === "committed" ? "" : "committed"));
-        // }}
         />
         <StatCard
           icon={Users}
-          value={humanAssisted}
+          value={stats.humanAssisted}
           desc="Human assisted"
           tone="amber"
           active={search.toLowerCase() === "human"}
-        // onClick={() => {
-        //   setSearch((prev) => (prev === "Human" ? "" : "Human"));
-        // }}
         />
       </div>
 
@@ -291,7 +347,7 @@ export function Pipeline({
           {/* All Dealerships */}
           <select
             value={dealerFilter}
-            onChange={(e) => setDealerFilter(e.target.value)}
+            onChange={(e) => handleDealerFilterChange(e.target.value)}
             className="w-full sm:w-[190px] text-sm border border-[#e2e2e2] rounded-lg px-3 py-2 bg-white outline-none cursor-pointer focus:border-[#cf1d29]"
           >
             <option value="">All dealerships</option>
@@ -305,7 +361,7 @@ export function Pipeline({
           {/* Platform */}
           <select
             value={platformFilter}
-            onChange={(e) => setPlatformFilter(e.target.value)}
+            onChange={(e) => handlePlatformFilterChange(e.target.value)}
             className="w-full sm:w-[160px] text-sm border border-[#e2e2e2] rounded-lg px-3 py-2 bg-white outline-none cursor-pointer focus:border-[#cf1d29]"
           >
             <option value="">All platforms</option>
@@ -317,7 +373,7 @@ export function Pipeline({
           {/* All Statuses */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
             className="w-full sm:w-[180px] text-sm border border-[#e2e2e2] rounded-lg px-3 py-2 bg-white outline-none cursor-pointer focus:border-[#cf1d29]"
           >
             <option value="">All statuses</option>
@@ -507,6 +563,19 @@ export function Pipeline({
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="px-4 py-2 bg-white">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  totalItems={totalLeads}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                  itemLabel="prospects"
+                />
               </div>
             </>
           )}
