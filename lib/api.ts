@@ -422,7 +422,14 @@ export interface Appointment {
   testDriveDate?: string | null;
 }
 
-export const getAppointments = () => request<Appointment[]>("/appointments");
+export const getAppointments = (params?: Record<string, any>) => {
+  const query = params ? "?" + new URLSearchParams(
+    Object.entries(params)
+      .filter(([_, v]) => v !== undefined && v !== null && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  ).toString() : "";
+  return request<any>(`/appointments${query}`);
+};
 
 export const updateAppointment = (id: string, data: Partial<Appointment>) =>
   request<Appointment>(`/appointments/${id}`, {

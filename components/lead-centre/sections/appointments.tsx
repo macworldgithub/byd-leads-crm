@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Check, Loader2 } from "lucide-react";
+import { ChevronDown, Check, Loader2, MapPin } from "lucide-react";
 import { Card, Pill, PageHeader } from "../shared";
 import { Pagination } from "../pagination";
 import { getAppointments, updateAppointment, getLeads, type Appointment } from "@/lib/api";
@@ -8,6 +8,17 @@ import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-ma
 import { useState, useEffect } from "react";
 
 const STATUS_OPTIONS = ["Proposed", "Confirmed", "Completed", "Cancelled", "No Show"];
+const YARD_OPTIONS = [
+  "All Locations",
+  "BYD Caroline Springs",
+  "BYD Melbourne City",
+  "BYD Melbourne CBD",
+  "BYD Fairfield",
+  "BYD South East",
+  "Holding Yard VIC",
+  "BYD Sydney",
+  "BYD Gold Coast",
+];
 
 export function Appointments({
   onSelectProspect,
@@ -15,21 +26,46 @@ export function Appointments({
   onSelectProspect?: (prospect: any) => void;
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [selectedYard, setSelectedYard] = useState("All Locations");
 
   // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
 
+  const fetchAppts = async () => {
+    setLoading(true);
+    try {
+      const res = await getAppointments({
+        page,
+        limit: pageSize,
+        yard: selectedYard !== "All Locations" ? selectedYard : undefined,
+      });
+
+      if (Array.isArray(res)) {
+        setAppointments(res);
+        setTotalCount(res.length);
+      } else if (res && res.data) {
+        setAppointments(res.data);
+        setTotalCount(res.pagination?.total || res.data.length);
+      } else {
+        setAppointments([]);
+        setTotalCount(0);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    getAppointments()
-      .then(setAppointments)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+    fetchAppts();
+  }, [page, pageSize, selectedYard]);
 
   useEffect(() => {
     const handleClick = () => setOpenDropdown(null);
@@ -90,15 +126,35 @@ export function Appointments({
     );
   };
 
-  const paginatedAppts = appointments.slice((page - 1) * pageSize, page * pageSize);
-  const totalPages = Math.ceil(appointments.length / pageSize) || 1;
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
   return (
     <>
-      <PageHeader
-        title="Appointments"
-        subtitle={`${appointments.length} test drives and showroom visits booked by the AI or your team`}
-      />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+        <PageHeader
+          title="Appointments"
+          subtitle={`${totalCount} test drives and showroom visits booked by the AI or your team`}
+        />
+
+        {/* Location / Yard Filter Dropdown */}
+        <div className="flex items-center gap-2">
+          <MapPin size={16} className="text-[#657083]" />
+          <select
+            value={selectedYard}
+            onChange={(e) => {
+              setSelectedYard(e.target.value);
+              setPage(1);
+            }}
+            className="text-xs bg-white border border-[#e2e2e2] rounded-lg px-3 py-2 text-[#1e293b] font-medium outline-none focus:border-[#cf1d29]"
+          >
+            {YARD_OPTIONS.map((yard) => (
+              <option key={yard} value={yard}>
+                {yard}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {loading && (
         <div className="flex items-center justify-center h-40 text-[#657083]">
@@ -114,7 +170,7 @@ export function Appointments({
           <table>
             <thead>
               <tr>
-                {["When", "Prospect", "Type", "Vehicle", "Dealership", "Booked By", "Status"].map(
+                {["When", "Prospect", "Type", "Vehicle", "Dealership / Yard", "Booked By", "Status"].map(
                   (h) => <th key={h}>{h}</th>
                 )}
               </tr>
@@ -123,11 +179,11 @@ export function Appointments({
               {appointments.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-[#657083] text-sm">
-                    No appointments found.
+                    No appointments found for selected location filter.
                   </td>
                 </tr>
               ) : (
-                paginatedAppts.map((appt) => (
+                appointments.map((appt) => (
                   <tr
                     key={appt._id}
                     onClick={() => handleAppointmentClick(appt)}
@@ -140,7 +196,7 @@ export function Appointments({
                     </td>
                     <td>{appt.type}</td>
                     <td>{appt.vehicle}</td>
-                    <td>{appt.dealership}</td>
+                    <td>{appt.dealership || appt.location || "BYD Fairfield"}</td>
                     <td>{appt.bookedBy}</td>
                     <td
                       className="relative cursor-pointer"
@@ -188,10 +244,13 @@ export function Appointments({
             <Pagination
               currentPage={page}
               totalPages={totalPages}
-              totalItems={appointments.length}
+              totalItems={totalCount}
               pageSize={pageSize}
               onPageChange={setPage}
-              onPageSizeChange={setPageSize}
+              onPageSizeChange={(sz) => {
+                setPageSize(sz);
+                setPage(1);
+              }}
               itemLabel="appointments"
             />
           </div>
