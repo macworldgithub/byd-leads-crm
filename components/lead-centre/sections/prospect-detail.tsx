@@ -48,6 +48,18 @@ export interface ProspectDetailProps {
     stockNum?: string;
     price?: string;
     color?: string;
+    platform?: string;
+    virtualyardId?: string;
+    assignedTo?: string;
+    source?: string;
+    leadDate?: string;
+    lastContact?: string;
+    testDrive?: {
+      testDriveDate?: string | null;
+      location?: string;
+      status?: string;
+      confirmed?: boolean;
+    } | null;
   };
   onBack: () => void;
 }
@@ -412,8 +424,23 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-gray-800/80">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="bg-[#2a2a2a] text-gray-300 text-[11px] font-mono font-semibold px-2.5 py-1 rounded-md tracking-wider">
-              {isMongoId ? `ID ${prospectId.slice(-8).toUpperCase()}` : `MANUAL TEST - ID ${prospectId}`}
+              {prospect?.virtualyardId
+                ? `VY-${prospect.virtualyardId}`
+                : isMongoId
+                  ? `ID ${prospectId.slice(-8).toUpperCase()}`
+                  : `ID ${prospectId}`}
             </span>
+            {prospect?.platform && (
+              <span className={`text-[11px] font-medium px-2.5 py-1 rounded-md border ${
+                prospect.platform === "virtualyard"
+                  ? "bg-[#1e293b] text-[#38bdf8] border-[#0284c7]/40"
+                  : prospect.platform === "autogate"
+                  ? "bg-[#172554] text-[#60a5fa] border-[#2563eb]/40"
+                  : "bg-[#0b332b] text-[#34d399] border-[#105649]"
+              }`}>
+                {prospect.platform === "virtualyard" ? "Virtual Yard" : prospect.platform === "autogate" ? "Autogate" : "SMS Connect"}
+              </span>
+            )}
             <span className="bg-[#0b332b] text-[#34d399] border border-[#105649] text-[11px] font-medium px-2.5 py-1 rounded-md">
               inventory monitored
             </span>
@@ -720,27 +747,68 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
               <Calendar size={16} className="text-[#cf1d29]" />
               Appointments
             </h3>
-            <p className="text-xs text-gray-500 m-0 leading-relaxed">
-              No appointments yet — the AI proposes times once the lead is qualified.
-            </p>
+            {prospect?.testDrive?.confirmed || prospect?.testDrive?.testDriveDate ? (
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-emerald-800">Test Drive Booked</span>
+                  <span className="bg-emerald-600 text-white font-medium px-2 py-0.5 rounded-full text-[10px]">
+                    {prospect.testDrive.status || "Confirmed"}
+                  </span>
+                </div>
+                <div className="text-gray-700 font-medium mt-1">
+                  📅 {prospect.testDrive.testDriveDate ? new Date(prospect.testDrive.testDriveDate).toLocaleString("en-AU", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }) : "Upcoming date"}
+                </div>
+                {prospect.testDrive.location && (
+                  <div className="text-gray-500 mt-1">
+                    📍 {prospect.testDrive.location}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 m-0 leading-relaxed">
+                No appointments yet — the AI proposes times once the lead is qualified.
+              </p>
+            )}
           </div>
 
           {/* Card 4: Compliance */}
           <div className="bg-white border border-[#e2e2e2] rounded-2xl p-5 shadow-sm">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3 m-0">
               <ShieldCheck size={16} className="text-[#cf1d29]" />
-              Compliance
+              Compliance & Source
             </h3>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Consent basis</span>
-                <span className="font-mono text-gray-700">
-                  {isMongoId ? "autogate_enquiry" : "manual_test_prospect_simulated"}
+                <span className="text-gray-500">Platform</span>
+                <span className="font-semibold text-gray-800 uppercase text-[11px]">
+                  {prospect?.platform || "manual"}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Consent captured</span>
-                <span className="text-gray-700">02/09/2026</span>
+                <span className="text-gray-500">Source</span>
+                <span className="font-medium text-gray-700">
+                  {prospect?.source || "Direct Form"}
+                </span>
+              </div>
+              {prospect?.assignedTo && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Assigned Consultant</span>
+                  <span className="font-medium text-gray-800">
+                    {prospect.assignedTo}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Consent basis</span>
+                <span className="font-mono text-gray-700">
+                  {prospect?.platform === "virtualyard" ? "virtualyard_enquiry" : isMongoId ? "autogate_enquiry" : "manual_test_prospect_simulated"}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-500">Sender ID</span>

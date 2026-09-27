@@ -69,12 +69,16 @@ export interface Lead {
   // Platform
   platform?: "manual" | "autogate" | "sms" | "virtualyard";
   // Virtualyard extras
+  leadId?: string;
   virtualyardId?: string;
   customerId?: string;
   vyStage?: string;
   vyStageText?: string;
   vyTab?: string;
   vyStatus?: string;
+  stageText?: string;
+  tab?: string;
+  previewText?: string;
   assignedTo?: string;
   lastContact?: string;
   leadDate?: string;
@@ -402,14 +406,20 @@ export const toggleConversationControl = (
 // ── Appointments ─────────────────────────────────────────────────────────────
 export interface Appointment {
   _id: string;
+  appointmentId?: string;
+  leadId?: string;
   when: string;
   prospectName: string;
   phone: string;
+  email?: string;
   type: string;
   vehicle: string;
   dealership: string;
+  location?: string;
   bookedBy: string;
   status: string;
+  platform?: "manual" | "autogate" | "virtualyard";
+  testDriveDate?: string | null;
 }
 
 export const getAppointments = () => request<Appointment[]>("/appointments");
