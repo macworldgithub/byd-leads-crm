@@ -350,15 +350,78 @@ export function Sidebar({
 }
 
 export function TopBar({ onMenu }: { onMenu: () => void }) {
-  const { AlertCircle, Menu } = require("lucide-react");
+  const { AlertCircle, CheckCircle2, ExternalLink, Menu } = require("lucide-react");
+  const [isProd, setIsProd] = typeof window !== "undefined"
+    ? require("react").useState(() => localStorage.getItem("byd_leads_mode") === "production")
+    : [false, () => {}];
+
+  const toggleMode = () => {
+    const next = !isProd;
+    if (next) {
+      if (confirm("Cut over Lead Centre to LIVE PRODUCTION MODE? Live qualified leads will be allocated to Sales Floor CRM.")) {
+        setIsProd(true);
+        localStorage.setItem("byd_leads_mode", "production");
+      }
+    } else {
+      setIsProd(false);
+      localStorage.setItem("byd_leads_mode", "demo");
+    }
+  };
+
+  const crmUrl = process.env.NEXT_PUBLIC_CRM_URL || "http://localhost:3000";
+
   return (
-    <>
-      <div className="demo">
-        <AlertCircle size={11} /> DEMONSTRATION MODE
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0 12px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button
+          onClick={toggleMode}
+          title="Click to toggle Production / Demonstration mode cutover (§8.2, AC-11)"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "5px 12px",
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+            border: isProd ? "1px solid #10b981" : "1px solid #f59e0b",
+            background: isProd ? "#ecfdf5" : "#fffbeb",
+            color: isProd ? "#047857" : "#b45309",
+            letterSpacing: "0.05em",
+            transition: "all 0.15s ease",
+          }}
+        >
+          {isProd ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+          <span>{isProd ? "PRODUCTION MODE · ACTIVE" : "DEMONSTRATION MODE"}</span>
+          <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }}>(Cutover: §8.2)</span>
+        </button>
+
+        <a
+          href={crmUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11,
+            fontWeight: 600,
+            color: "#6b7280",
+            textDecoration: "none",
+            padding: "4px 8px",
+            borderRadius: 6,
+            background: "#f3f4f6",
+          }}
+        >
+          <span>Open Sales Floor CRM</span>
+          <ExternalLink size={11} />
+        </a>
       </div>
+
       <button className="mobile-menu" onClick={onMenu} aria-label="Open navigation menu">
         <Menu size={20} />
       </button>
-    </>
+    </div>
   );
 }

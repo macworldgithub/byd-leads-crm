@@ -16,6 +16,9 @@ import {
   User,
   UserCheck,
   Zap,
+  ExternalLink,
+  UserPlus,
+  Share2,
 } from "lucide-react";
 import {
   updateLead,
@@ -25,6 +28,8 @@ import {
   simulateCustomerResponse,
   sendAgentReply,
   toggleConversationControl,
+  allocateLeadToSalesCrm,
+  CRM_BASE_URL,
   type Conversation,
   type ConversationMessage,
 } from "@/lib/api";
@@ -125,6 +130,22 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
   const [isSavingStage, setIsSavingStage] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // Sales CRM Allocation state (§8.2, AC-4, AC-11)
+  const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
+  const [allocatedSite, setAllocatedSite] = useState<string>(dealership.includes("Melbourne") ? "Melbourne City" : "Fairfield");
+  const [allocatedConsultant, setAllocatedConsultant] = useState("Alex Rivers");
+  const [allocationNotes, setAllocationNotes] = useState("");
+  const [isAllocating, setIsAllocating] = useState(false);
+  const [allocatedCrmData, setAllocatedCrmData] = useState<any>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(`crm_alloc_${prospectId}`);
+      if (stored) {
+        try { return JSON.parse(stored); } catch {}
+      }
+    }
+    return null;
+  });
 
   const [qualification, setQualification] = useState({
     intent: "—",
@@ -310,6 +331,54 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
     }
   };
 
+  // Sales Floor Allocation (§8.2, AC-4, AC-11)
+  const handleAllocateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAllocating(true);
+    const isProdMode = typeof window !== "undefined" && localStorage.getItem("byd_leads_mode") === "production";
+
+    try {
+      const res = await allocateLeadToSalesCrm({
+        lead_prospect_id: prospectId,
+        name: fullName,
+        phone,
+        email: prospect?.email || "",
+        vehicle,
+        site: allocatedSite,
+        assigned_to: allocatedConsultant,
+        score: qualification ? 85 : 70,
+        notes: allocationNotes.trim() || `Allocated from Lead Centre. Vehicle interest: ${vehicle}.`,
+        is_demo: !isProdMode,
+      });
+
+      const allocResult = {
+        allocated_to_crm: true,
+        site: allocatedSite,
+        consultant: allocatedConsultant,
+        allocated_at: new Date().toISOString(),
+        customer_id: res.customer_id,
+        opportunity_id: res.opportunity_id,
+        allocation_id: res.allocation_id,
+      };
+
+      setAllocatedCrmData(allocResult);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`crm_alloc_${prospectId}`, JSON.stringify(allocResult));
+      }
+
+      // Automatically pause Lead Centre AI for human floor control (§8.2, AC-4)
+      if (isAiActive) {
+        handleToggleControl();
+      }
+
+      setIsAllocateModalOpen(false);
+    } catch (err: any) {
+      console.error("Allocation error:", err);
+    } finally {
+      setIsAllocating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 sm:gap-5 max-w-[1400px] mx-auto pb-12 animate-in fade-in duration-200">
       {/* ── Top Header Row ── */}
@@ -340,7 +409,15 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                 </span>
               ) : (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa]">
-                  Human: Demo Agent
+                  Human: {allocatedCrmData?.consultant || "Floor Consultant"}
+                </span>
+              )}
+
+              {/* CRM Allocation Tag (§8.2, AC-1, AC-4) */}
+              {allocatedCrmData && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 size={12} />
+                  <span>Floor Allocated · {allocatedCrmData.consultant}</span>
                 </span>
               )}
 
@@ -349,13 +426,36 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
               )}
             </div>
             <p className="text-xs sm:text-sm text-[#657083] mt-1 m-0">
-              {phone} · {dealership} · via Autogate 27m ago
+              {phone} · {dealership} · via Autogate
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Open in Sales CRM Deep Link (§8.2, AC-1) */}
+          {allocatedCrmData ? (
+            <a
+              href={`${CRM_BASE_URL}/?search=${encodeURIComponent(phone || fullName)}&customer_id=${allocatedCrmData.customer_id || ''}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg bg-red-50 hover:bg-red-100 text-[#cf1d29] border border-red-200 transition-colors"
+              title="Open customer 360 & deal in Sales CRM desk"
+            >
+              <span>Open in Sales CRM</span>
+              <ExternalLink size={13} />
+            </a>
+          ) : (
+            <button
+              onClick={() => setIsAllocateModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm transition-all"
+              title="Allocate lead to Sales CRM consultant with 15-min SLA timer (§8.2, AC-4)"
+            >
+              <UserPlus size={14} />
+              <span>Allocate to Sales CRM</span>
+            </button>
+          )}
+
           <select
             value={stage}
             onChange={(e) => handleStageChange(e.target.value)}
@@ -373,7 +473,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
           <button
             onClick={handleToggleControl}
             disabled={isTogglingControl}
-            className={`flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${isAiActive
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${isAiActive
               ? "bg-[#cf1d29] hover:bg-[#b51823] text-white shadow-sm"
               : "bg-white border border-[#e2e2e2] text-gray-800 hover:bg-gray-50 shadow-sm"
               }`}
@@ -766,6 +866,86 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
             primary={isDeleting ? "Deleting..." : "Delete"}
             disabled={isDeleting}
           />
+        </Modal>
+      )}
+
+      {/* Allocate to Sales CRM Modal Dialog (§8.2, AC-4, AC-11) */}
+      {isAllocateModalOpen && (
+        <Modal
+          title="Allocate to Sales Floor CRM Desk"
+          description="Send this qualified prospect directly to a sales consultant desk with an active 15-minute SLA timer (§8.2, AC-4)."
+          onClose={() => setIsAllocateModalOpen(false)}
+        >
+          <form onSubmit={handleAllocateSubmit} className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs font-bold text-gray-800 block mb-1">
+                Target Dealership / Floor Site *
+              </label>
+              <select
+                value={allocatedSite}
+                onChange={(e) => setAllocatedSite(e.target.value)}
+                className="w-full text-xs p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white outline-none"
+              >
+                <option value="Fairfield">BYD Fairfield VIC</option>
+                <option value="Melbourne City">BYD Melbourne City VIC</option>
+                <option value="Doncaster">BYD Doncaster VIC</option>
+                <option value="Nunawading">BYD Nunawading VIC</option>
+                <option value="Caroline Springs">BYD Caroline Springs VIC</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-800 block mb-1">
+                Assigned Sales Consultant *
+              </label>
+              <select
+                value={allocatedConsultant}
+                onChange={(e) => setAllocatedConsultant(e.target.value)}
+                className="w-full text-xs p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white outline-none"
+              >
+                <option value="Alex Rivers">Alex Rivers (Senior Consultant)</option>
+                <option value="Sarah Chen">Sarah Chen (EV Specialist)</option>
+                <option value="Marcus Vance">Marcus Vance (Fleet Consultant)</option>
+                <option value="Liam Davies">Liam Davies (Consultant)</option>
+                <option value="Chloe Bennett">Chloe Bennett (Consultant)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-800 block mb-1">
+                Allocation Handover Notes
+              </label>
+              <textarea
+                rows={2}
+                value={allocationNotes}
+                onChange={(e) => setAllocationNotes(e.target.value)}
+                placeholder="e.g. Prospect wants ATTO 3 in Surf Blue, trading 2021 Corolla, finance pre-approved."
+                className="w-full text-xs p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white outline-none"
+              />
+            </div>
+
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+              <strong>SLA Notice:</strong> Allocating activates a 15-minute response SLA on the CRM floor desk and automatically pauses Lead Centre AI for human consultant takeover.
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsAllocateModalOpen(false)}
+                className="px-3 py-2 text-xs font-semibold text-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isAllocating}
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-wider shadow-sm flex items-center gap-1.5"
+              >
+                {isAllocating ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
+                <span>Confirm Floor Allocation</span>
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
