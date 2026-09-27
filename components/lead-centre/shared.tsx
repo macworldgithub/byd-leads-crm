@@ -368,7 +368,12 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
     }
   };
 
-  const crmUrl = process.env.NEXT_PUBLIC_CRM_URL || "http://localhost:3000";
+  const crmUrl =
+    process.env.NEXT_PUBLIC_CRM_URL ||
+    (typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+      ? "http://localhost:4002"
+      : "https://crm.goodshowroom.com");
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0 12px" }}>

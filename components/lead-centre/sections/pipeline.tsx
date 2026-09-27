@@ -234,6 +234,13 @@ export function Pipeline({
     enquiryDesc: l.enquiryDesc,
     enquiryNote: l.enquiryNote,
     _id: l._id,
+    platform: l.platform,
+    virtualyardId: l.virtualyardId,
+    assignedTo: l.assignedTo,
+    source: l.source,
+    leadDate: l.leadDate,
+    lastContact: l.lastContact,
+    testDrive: l.testDrive,
   });
 
   return (

@@ -481,13 +481,13 @@ export const CRM_BASE_URL =
   process.env.NEXT_PUBLIC_CRM_URL ||
   (typeof window !== "undefined" && window.location.hostname === "localhost"
     ? "http://localhost:3000"
-    : "https://crm.omnisuiteai.com");
+    : "https://crm.goodshowroom.com");
 
 export const CRM_BACKEND_URL =
   process.env.NEXT_PUBLIC_CRM_BACKEND_URL ||
   (typeof window !== "undefined" && window.location.hostname === "localhost"
     ? "http://localhost:5000"
-    : "https://byd-sales-floor-backend.vercel.app");
+    : "https://sales-floor-backend.goodshowroom.com");
 
 export interface CrmAllocationPayload {
   lead_prospect_id: string;
@@ -514,17 +514,48 @@ export interface CrmAllocationResponse {
 export async function allocateLeadToSalesCrm(
   payload: CrmAllocationPayload
 ): Promise<CrmAllocationResponse> {
+  const eventId = `EVT-LC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const webhookBody = {
+    event_id: eventId,
+    event: "lead.allocated",
+    source: "lead_centre",
+    demo_mode: Boolean(payload.is_demo),
+    customer_keys: {
+      phone: payload.phone,
+      email: payload.email || undefined,
+    },
+    payload: {
+      prospect_id: payload.lead_prospect_id,
+      name: payload.name,
+      phone: payload.phone,
+      email: payload.email,
+      site: payload.site,
+      assigned_to: payload.assigned_to,
+      vehicle: payload.vehicle,
+      score: payload.score || 85,
+      notes: payload.notes,
+    },
+  };
+
   try {
-    const res = await fetch(`${CRM_BACKEND_URL}/api/crm/allocations`, {
+    const res = await fetch(`${CRM_BACKEND_URL}/api/webhooks/lead`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(webhookBody),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: res.statusText }));
       throw new Error(err.message || "Failed to allocate to Sales CRM");
     }
-    return res.json();
+    const json = await res.json();
+    return {
+      success: true,
+      message: json.message || `Allocated to ${payload.assigned_to} at ${payload.site}`,
+      allocation_id: json.allocation_id || `ALC-${Date.now().toString().slice(-6)}`,
+      customer_id: json.customer_id,
+      opportunity_id: json.opportunity_id,
+      data: json,
+    };
   } catch (err: any) {
     // Graceful fallback for demo/offline resilience
     return {
