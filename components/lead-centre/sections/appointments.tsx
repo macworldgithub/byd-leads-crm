@@ -54,9 +54,11 @@ export function Appointments({
     if (!onSelectProspect) return;
 
     try {
-      const leads = await getLeads({ q: appt.phone || appt.prospectName });
+      const query = appt.leadId || appt.phone || appt.prospectName;
+      const leads = await getLeads({ q: query });
       const matched =
-        leads.find((l) => l.phone === appt.phone) ||
+        (appt.leadId && leads.find((l) => l.virtualyardId === appt.leadId || l.leadId === appt.leadId || l._id === appt.leadId)) ||
+        leads.find((l) => l.phone && appt.phone && l.phone === appt.phone) ||
         leads.find((l) => l.name.toLowerCase() === appt.prospectName.toLowerCase()) ||
         leads[0];
 
@@ -73,9 +75,17 @@ export function Appointments({
         id: appt._id,
         name: appt.prospectName,
         phone: appt.phone,
-        dealership: appt.dealership,
-        vehicle: appt.vehicle !== "—" ? appt.vehicle : "2025 BYD ATTO 1",
+        email: appt.email || "",
+        dealership: appt.dealership || appt.location,
+        vehicle: appt.vehicle && appt.vehicle !== "—" ? appt.vehicle : "2025 BYD ATTO 1",
         status: appt.status,
+        platform: appt.platform || "virtualyard",
+        testDrive: {
+          testDriveDate: appt.testDriveDate || appt.when,
+          location: appt.dealership || appt.location || "BYD Dealership",
+          status: appt.status || "Confirmed",
+          confirmed: true,
+        },
       })
     );
   };

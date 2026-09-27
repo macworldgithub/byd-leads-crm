@@ -15,12 +15,19 @@ export function mapLeadToProspect(l: Lead) {
     dealership: l.dealer || "BYD Fairfield VIC",
     vehicle: l.vehicle || "2025 BYD ATTO 1",
     enquiryDesc: l.enquiryDesc || `${l.vehicle} with ${l.dealer}`,
-    enquiryNote: l.enquiryNote || "",
+    enquiryNote: l.enquiryNote || l.notes || l.previewText || "",
     stage: l.stage || "NEW ENQUIRIES",
     status: l.control || "AI active",
     stockNum: l.stockNum || "",
     price: l.price || "$23,990",
     color: l.paintColor || "Apricity White",
+    platform: l.platform || "manual",
+    virtualyardId: l.virtualyardId || l.leadId || "",
+    assignedTo: l.assignedTo || "",
+    source: l.source || "",
+    testDrive: l.testDrive || null,
+    leadDate: l.leadDate || "",
+    lastContact: l.lastContact || "",
   };
 }
 
@@ -29,11 +36,14 @@ export function createProspectFromMetadata(data: {
   _id?: string;
   name?: string;
   phone?: string;
+  email?: string;
   dealer?: string;
   dealership?: string;
   vehicle?: string;
   status?: string;
   control?: string;
+  testDrive?: any;
+  platform?: string;
 }) {
   const rawName = data.name || "Customer";
   const parts = rawName.trim().split(" ");
@@ -47,7 +57,7 @@ export function createProspectFromMetadata(data: {
     firstName,
     lastName,
     phone: data.phone || "",
-    email: "",
+    email: data.email || "",
     dealership: dealer,
     vehicle: data.vehicle || "2025 BYD ATTO 1",
     enquiryDesc: `${data.vehicle || "BYD vehicle"} with ${dealer}`,
@@ -57,5 +67,8 @@ export function createProspectFromMetadata(data: {
     stockNum: "",
     price: "$23,990",
     color: "Apricity White",
+    platform: data.platform || "manual",
+    testDrive: data.testDrive || null,
   };
 }
+
