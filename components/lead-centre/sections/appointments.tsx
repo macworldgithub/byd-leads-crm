@@ -39,6 +39,7 @@ export function Appointments({
 
   const fetchAppts = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await getAppointments({
         page,
@@ -49,15 +50,17 @@ export function Appointments({
       if (Array.isArray(res)) {
         setAppointments(res);
         setTotalCount(res.length);
-      } else if (res && res.data) {
+      } else if (res && Array.isArray(res.data)) {
         setAppointments(res.data);
-        setTotalCount(res.pagination?.total || res.data.length);
+        setTotalCount(res.pagination?.total ?? res.data.length);
       } else {
         setAppointments([]);
         setTotalCount(0);
       }
     } catch (err: any) {
       setError(err.message);
+      setAppointments([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -126,7 +129,7 @@ export function Appointments({
     );
   };
 
-  const totalPages = Math.ceil(totalCount / pageSize) || 1;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return (
     <>
@@ -145,7 +148,7 @@ export function Appointments({
               setSelectedYard(e.target.value);
               setPage(1);
             }}
-            className="text-xs bg-white border border-[#e2e2e2] rounded-lg px-3 py-2 text-[#1e293b] font-medium outline-none focus:border-[#cf1d29]"
+            className="text-xs bg-white border border-[#e2e2e2] rounded-lg px-3 py-2 text-[#1e293b] font-medium outline-none focus:border-[#cf1d29] cursor-pointer"
           >
             {YARD_OPTIONS.map((yard) => (
               <option key={yard} value={yard}>
