@@ -1,5 +1,10 @@
-const BASE = "https://byd-leads-backend.vercel.app/api";
-// const BASE = "http://localhost:4001/api";
+const BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1")
+    ? "http://localhost:4000/api"
+    : "https://byd-leads-backend.vercel.app/api");
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -448,6 +453,14 @@ export interface SmsSettings {
   connectionStatus?: "untested" | "connected" | "failed";
   lastTestedAt?: string | null;
   connectionMessage?: string;
+  creditBalance?: number;
+}
+
+export interface SmsSender {
+  sender: string;
+  type: string;
+  label?: string | null;
+  is_default?: boolean;
 }
 
 export interface SmsTestResult {
@@ -455,7 +468,23 @@ export interface SmsTestResult {
   connectionStatus: "connected" | "failed";
   message: string;
   testedAt: string;
+  balance?: number;
+  price?: number;
+  senders?: SmsSender[];
   data?: SmsSettings;
+}
+
+export interface SendTestSmsResult {
+  success: boolean;
+  message: string;
+  result?: {
+    success: boolean;
+    simulated: boolean;
+    messageId: string;
+    to: string;
+    sender: string;
+    cost?: number;
+  };
 }
 
 export const getSmsSettings = () => request<SmsSettings>("/settings/sms");
@@ -470,6 +499,12 @@ export const testSmsConnection = (data?: Partial<SmsSettings>) =>
   request<SmsTestResult>("/settings/sms/test", {
     method: "POST",
     body: JSON.stringify(data || {}),
+  });
+
+export const sendTestSms = (payload: { to: string; message?: string }) =>
+  request<SendTestSmsResult>("/settings/sms/send-test", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 
 // ── Audit Trails ─────────────────────────────────────────────────────────────

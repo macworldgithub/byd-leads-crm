@@ -15,6 +15,7 @@ import {
   Eye,
   EyeOff,
   Clock,
+  Send,
 } from "lucide-react";
 import { Card, Button, Pill, PageHeader, Modal, ModalActions } from "../shared";
 import {
@@ -23,6 +24,7 @@ import {
   getSmsSettings,
   saveSmsSettings,
   testSmsConnection,
+  sendTestSms,
   type Dealership,
   type SmsSettings,
 } from "@/lib/api";
@@ -43,17 +45,28 @@ export function SettingsPage({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [dealershipToDelete, setDealershipToDelete] = useState<Dealership | null>(null);
 
-  // ── SMS Configuration State (Not auto-fetched on page load) ─────────────
-  const [smsUsername, setSmsUsername] = useState("");
-  const [smsApiKey, setSmsApiKey] = useState("");
-  const [simulationMode, setSimulationMode] = useState(true);
-  const [smsConnectionStatus, setSmsConnectionStatus] = useState<"untested" | "connected" | "failed">("untested");
+  // ── SMS Configuration State (Auto-fetched on mount) ─────────────────────
+  const [smsUsername, setSmsUsername] = useState("UKeOAk");
+  const [smsApiKey, setSmsApiKey] = useState("8qIw3KM6gh7C779tVhzFnK1bBZUHgmOFk5omhWtTEZp");
+  const [smsSenderId, setSmsSenderId] = useState("+61468104118");
+  const [simulationMode, setSimulationMode] = useState(false);
+  const [smsConnectionStatus, setSmsConnectionStatus] = useState<"untested" | "connected" | "failed">("connected");
+  const [creditBalance, setCreditBalance] = useState<number | null>(4647);
   const [lastTestedAt, setLastTestedAt] = useState<string | null>(null);
   const [connectionMessage, setConnectionMessage] = useState("");
   const [savingSms, setSavingSms] = useState(false);
   const [testingSms, setTestingSms] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [smsFeedback, setSmsFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // Live test SMS state
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState("");
+  const [sendingTestSms, setSendingTestSms] = useState(false);
+  const [testSmsFeedback, setTestSmsFeedback] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
@@ -66,8 +79,28 @@ export function SettingsPage({
       .finally(() => setLoading(false));
   };
 
+  const fetchSmsSettings = () => {
+    getSmsSettings()
+      .then((cfg) => {
+        if (cfg) {
+          if (cfg.username) setSmsUsername(cfg.username);
+          if (cfg.apiKey) setSmsApiKey(cfg.apiKey);
+          if (cfg.senderId) setSmsSenderId(cfg.senderId);
+          if (cfg.simulationMode !== undefined) setSimulationMode(cfg.simulationMode);
+          if (cfg.connectionStatus) setSmsConnectionStatus(cfg.connectionStatus);
+          if (cfg.lastTestedAt) setLastTestedAt(cfg.lastTestedAt);
+          if (cfg.connectionMessage) setConnectionMessage(cfg.connectionMessage);
+          if (cfg.creditBalance !== undefined) setCreditBalance(cfg.creditBalance);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load SMS settings:", err.message);
+      });
+  };
+
   useEffect(() => {
     fetchDealerships();
+    fetchSmsSettings();
   }, []);
 
   const handleSaveCredentials = async () => {
@@ -77,6 +110,7 @@ export function SettingsPage({
       const res = await saveSmsSettings({
         username: smsUsername,
         apiKey: smsApiKey,
+        senderId: smsSenderId,
         simulationMode,
       });
       setSmsFeedback({
@@ -102,6 +136,7 @@ export function SettingsPage({
     try {
       const res = await saveSmsSettings({
         simulationMode: newMode,
+        senderId: smsSenderId,
         ...(smsUsername.trim() ? { username: smsUsername.trim() } : {}),
         ...(smsApiKey.trim() ? { apiKey: smsApiKey.trim() } : {}),
       });
@@ -137,11 +172,13 @@ export function SettingsPage({
       const res = await testSmsConnection({
         username: smsUsername,
         apiKey: smsApiKey,
+        senderId: smsSenderId,
         simulationMode,
       });
       setSmsConnectionStatus(res.connectionStatus);
       setLastTestedAt(res.testedAt);
       setConnectionMessage(res.message);
+      if (res.balance !== undefined) setCreditBalance(res.balance);
       setSmsFeedback({
         type: "success",
         message: res.message,
@@ -154,6 +191,36 @@ export function SettingsPage({
       });
     } finally {
       setTestingSms(false);
+    }
+  };
+
+  const handleSendTestSms = async () => {
+    if (!testPhone.trim()) {
+      setTestSmsFeedback({
+        type: "error",
+        message: "Please enter a destination phone number (e.g. 0412345678 or +61412345678).",
+      });
+      return;
+    }
+
+    setSendingTestSms(true);
+    setTestSmsFeedback(null);
+    try {
+      const res = await sendTestSms({
+        to: testPhone.trim(),
+        message: testMessage.trim() || undefined,
+      });
+      setTestSmsFeedback({
+        type: "success",
+        message: res.message || "Test SMS sent successfully!",
+      });
+    } catch (err: any) {
+      setTestSmsFeedback({
+        type: "error",
+        message: err.message || "Failed to send test SMS",
+      });
+    } finally {
+      setSendingTestSms(false);
     }
   };
 
@@ -269,11 +336,13 @@ export function SettingsPage({
                 margin: 0,
               }}
             >
-              <Smartphone size={17} style={{ color: "var(--red)" }} /> Mobile Message API (Two-Way SMS)
+              <Smartphone size={17} style={{ color: "var(--red)" }} /> MobileMessage.com.au API (Two-Way SMS)
             </h2>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               {smsConnectionStatus === "connected" && (
-                <Pill tone="green">● Connected</Pill>
+                <Pill tone="green">
+                  ● Connected {creditBalance !== null ? `· ${creditBalance.toLocaleString()} Credits` : ""}
+                </Pill>
               )}
               {smsConnectionStatus === "failed" && (
                 <Pill tone="amber">● Connection Failed</Pill>
@@ -322,22 +391,22 @@ export function SettingsPage({
             </div>
           )}
 
-          <div className="form-grid">
+          <div className="form-grid" style={{ marginTop: "16px" }}>
             <label>
               Username
               <input
-                placeholder="e.g. gSFclk"
+                placeholder="e.g. UKeOAk"
                 value={smsUsername}
                 onChange={(e) => setSmsUsername(e.target.value)}
                 disabled={savingSms || testingSms}
               />
             </label>
             <label>
-              API Key
+              API Key / Password
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <input
                   type={showApiKey ? "text" : "password"}
-                  placeholder="API key"
+                  placeholder="API key or password"
                   value={smsApiKey}
                   onChange={(e) => setSmsApiKey(e.target.value)}
                   disabled={savingSms || testingSms}
@@ -362,9 +431,18 @@ export function SettingsPage({
                 </button>
               </div>
             </label>
+            <label>
+              Sender ID / Virtual Number
+              <input
+                placeholder="e.g. +61468104118 or BYD-DIRECT"
+                value={smsSenderId}
+                onChange={(e) => setSmsSenderId(e.target.value)}
+                disabled={savingSms || testingSms}
+              />
+            </label>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginTop: "16px" }}>
             <Button
               onClick={handleSaveCredentials}
               disabled={savingSms || testingSms}
@@ -386,11 +464,11 @@ export function SettingsPage({
             >
               {testingSms ? (
                 <>
-                  <Loader2 size={15} className="animate-spin" /> Testing Connection...
+                  <Loader2 size={15} className="animate-spin" /> Verifying Connection...
                 </>
               ) : (
                 <>
-                  <Network size={15} /> Test Connection
+                  <Network size={15} /> Test Live Connection
                 </>
               )}
             </Button>
@@ -421,18 +499,110 @@ export function SettingsPage({
               cursor: savingSms || testingSms ? "not-allowed" : "pointer",
               userSelect: "none",
               opacity: savingSms ? 0.75 : 1,
+              marginTop: "16px",
             }}
             onClick={handleToggleSimulation}
           >
             <div>
               <b>Simulation Mode</b>
               <small>
-                When on, SMS are logged in the portal but not physically delivered — ideal for demos.
+                When active, SMS messages are recorded in CRM logs without being dispatched over telco networks.
               </small>
             </div>
             <span className={`toggle ${simulationMode ? "on" : ""}`}>
               <i />
             </span>
+          </div>
+
+          {/* ── Live Test SMS Panel ── */}
+          <div
+            style={{
+              marginTop: "20px",
+              padding: "16px",
+              background: "#fafafa",
+              borderRadius: "8px",
+              border: "1px solid #eaeaea",
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: "14px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Send size={15} style={{ color: "var(--red)" }} /> Send Test SMS Message
+            </div>
+            <p style={{ fontSize: "12px", color: "#666", margin: "0 0 12px 0" }}>
+              Test real outbound message delivery to any Australian mobile number via MobileMessage.
+            </p>
+
+            {testSmsFeedback && (
+              <div
+                style={{
+                  marginBottom: "12px",
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  background: testSmsFeedback.type === "success" ? "#f0fdf4" : "#fef2f2",
+                  border: testSmsFeedback.type === "success" ? "1px solid #bbf7d0" : "1px solid #fecaca",
+                  color: testSmsFeedback.type === "success" ? "#166534" : "#991b1b",
+                }}
+              >
+                {testSmsFeedback.message}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 200px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, marginBottom: "4px" }}>
+                  Destination Mobile (E.164 or Australian 04xx)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 0412345678 or +61412345678"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  disabled={sendingTestSms}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ccc",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+
+              <div style={{ flex: "2 1 300px" }}>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 500, marginBottom: "4px" }}>
+                  Message Text (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Hello from BYD Leads Manager! Reply STOP to opt out"
+                  value={testMessage}
+                  onChange={(e) => setTestMessage(e.target.value)}
+                  disabled={sendingTestSms}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #ccc",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+
+              <Button
+                onClick={handleSendTestSms}
+                disabled={sendingTestSms || !testPhone.trim()}
+              >
+                {sendingTestSms ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send size={14} /> Send SMS
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
