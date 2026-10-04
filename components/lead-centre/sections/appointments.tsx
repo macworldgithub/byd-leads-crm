@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Check, Loader2, MapPin } from "lucide-react";
+import { ChevronDown, Check, Loader2, MapPin, Search, X } from "lucide-react";
 import { Card, Pill, PageHeader } from "../shared";
 import { Pagination } from "../pagination";
 import { getAppointments, updateAppointment, getLeads, type Appointment } from "@/lib/api";
@@ -8,6 +8,7 @@ import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-ma
 import { useState, useEffect } from "react";
 
 const STATUS_OPTIONS = ["Proposed", "Confirmed", "Completed", "Cancelled", "No Show"];
+const TYPE_OPTIONS = ["Test Drive", "Showroom Visit", "Vehicle Delivery", "Service Consultation"];
 const YARD_OPTIONS = [
   "All Locations",
   "BYD Melbourne City",
@@ -38,6 +39,9 @@ export function Appointments({
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedYard, setSelectedYard] = useState(locationFilter || "All Locations");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Sync internal selectedYard with global locationFilter
   useEffect(() => {
@@ -57,6 +61,9 @@ export function Appointments({
         page,
         limit: pageSize,
         yard: selectedYard !== "All Locations" ? selectedYard : undefined,
+        status: statusFilter || undefined,
+        type: typeFilter || undefined,
+        q: searchQuery.trim() || undefined,
       });
 
       if (Array.isArray(res)) {
@@ -80,7 +87,7 @@ export function Appointments({
 
   useEffect(() => {
     fetchAppts();
-  }, [page, pageSize, selectedYard]);
+  }, [page, pageSize, selectedYard, statusFilter, typeFilter, searchQuery]);
 
   useEffect(() => {
     const handleClick = () => setOpenDropdown(null);
@@ -151,25 +158,89 @@ export function Appointments({
           subtitle={`${totalCount} test drives and showroom visits booked by the AI or your team`}
         />
 
-        {/* Location / Yard Filter Dropdown */}
-        <div className="flex items-center gap-2">
-          <MapPin size={16} className="text-[#657083]" />
+        {/* Multi-parameter Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search Box */}
+          <div className="relative">
+            <Search size={14} className="text-[#657083] absolute left-2.5 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search appointments..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
+              className="text-xs bg-white border border-[#e2e2e2] rounded-lg pl-8 pr-3 py-2 text-[#1e293b] font-medium outline-none focus:border-[#cf1d29] w-48 sm:w-56"
+            />
+          </div>
+
+          {/* Location / Yard Filter Dropdown */}
+          <div className="flex items-center gap-1.5 bg-white border border-[#e2e2e2] rounded-lg px-2.5 py-1.5">
+            <MapPin size={14} className="text-[#657083]" />
+            <select
+              value={selectedYard}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedYard(val);
+                setPage(1);
+                onLocationChange?.(val);
+              }}
+              className="text-xs bg-transparent text-[#1e293b] font-medium outline-none cursor-pointer"
+            >
+              {YARD_OPTIONS.map((yard) => (
+                <option key={yard} value={yard}>
+                  {yard}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
           <select
-            value={selectedYard}
+            value={statusFilter}
             onChange={(e) => {
-              const val = e.target.value;
-              setSelectedYard(val);
+              setStatusFilter(e.target.value);
               setPage(1);
-              onLocationChange?.(val);
             }}
             className="text-xs bg-white border border-[#e2e2e2] rounded-lg px-3 py-2 text-[#1e293b] font-medium outline-none focus:border-[#cf1d29] cursor-pointer"
           >
-            {YARD_OPTIONS.map((yard) => (
-              <option key={yard} value={yard}>
-                {yard}
-              </option>
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
+
+          {/* Type Filter */}
+          <select
+            value={typeFilter}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setPage(1);
+            }}
+            className="text-xs bg-white border border-[#e2e2e2] rounded-lg px-3 py-2 text-[#1e293b] font-medium outline-none focus:border-[#cf1d29] cursor-pointer"
+          >
+            <option value="">All Types</option>
+            {TYPE_OPTIONS.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+
+          {/* Clear Filters */}
+          {(Boolean(searchQuery) || Boolean(statusFilter) || Boolean(typeFilter) || (selectedYard !== "All Locations" && (!locationFilter || selectedYard !== locationFilter))) && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setStatusFilter("");
+                setTypeFilter("");
+                setSelectedYard(locationFilter || "All Locations");
+                setPage(1);
+              }}
+              className="text-xs flex items-center gap-1 text-[#657083] hover:text-[#cf1d29] font-medium px-2 py-1.5 transition-colors"
+            >
+              <X size={13} /> Clear
+            </button>
+          )}
         </div>
       </div>
 

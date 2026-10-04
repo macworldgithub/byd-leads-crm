@@ -31,6 +31,7 @@ import {
   getLockedSite,
   getStoredUser,
   clearToken,
+  authApi,
 } from "@/lib/api";
 import { LoginView } from "./auth/LoginView";
 
@@ -81,14 +82,42 @@ export default function LeadCentre() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return Boolean(getToken());
-    }
-    return false;
-  });
+  const [mounted, setMounted] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<any>(() => getStoredUser());
   const lockedSite = (typeof window !== "undefined" ? getLockedSite() : "") || (user?.locked_site || "");
+
+  useEffect(() => {
+    setMounted(true);
+    const token = getToken();
+    if (!token) {
+      setIsAuthenticated(false);
+      setIsCheckingAuth(false);
+      return;
+    }
+    authApi
+      .getMe()
+      .then((res: any) => {
+        if (res && (res.user || res.email || res._id)) {
+          const u = res.user || res;
+          setUser(u);
+          setIsAuthenticated(true);
+          const lock = u?.locked_site || getLockedSite();
+          if (lock) setSelectedLocation(lock);
+        } else {
+          clearToken();
+          setIsAuthenticated(false);
+        }
+      })
+      .catch(() => {
+        clearToken();
+        setIsAuthenticated(false);
+      })
+      .finally(() => {
+        setIsCheckingAuth(false);
+      });
+  }, []);
 
   // Overall Location / Yard Filter State
   const [selectedLocation, setSelectedLocation] = useState<string>(() => {
@@ -325,6 +354,15 @@ export default function LeadCentre() {
       }) as Record<string, React.ReactNode>
     )[active];
   }, [active, openEdit, selectedProspect, refreshKey, selectedLocation, lockedSite]);
+
+  if (!mounted || isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 text-slate-400 font-mono text-sm">
+        <div className="w-8 h-8 rounded-full border-2 border-[#e60012] border-t-transparent animate-spin" />
+        <span>Verifying Lead Centre Session...</span>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
