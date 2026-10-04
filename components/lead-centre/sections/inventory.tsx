@@ -11,6 +11,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  MapPin,
 } from "lucide-react";
 import { Card, Button, Pill, PageHeader } from "../shared";
 import { Pagination } from "../pagination";
@@ -154,7 +155,13 @@ function HealthBar({ score }: { score: number }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function Inventory() {
+export function Inventory({
+  locationFilter = "",
+  onLocationChange,
+}: {
+  locationFilter?: string;
+  onLocationChange?: (loc: string) => void;
+} = {}) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +182,7 @@ export function Inventory() {
     if (modelFilter) params.model = modelFilter;
     if (conditionFilter) params.condition = conditionFilter;
     if (platformFilter) params.platform = platformFilter;
+    if (locationFilter) params.location = locationFilter;
     getInventory(params)
       .then((data) => {
         let filtered = data;
@@ -185,9 +193,10 @@ export function Inventory() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [search, modelFilter, conditionFilter, platformFilter, networkFilter]);
+  }, [search, modelFilter, conditionFilter, platformFilter, networkFilter, locationFilter]);
 
   useEffect(() => {
+    setPage(1);
     fetchInventory();
   }, [fetchInventory]);
 
@@ -230,6 +239,22 @@ export function Inventory() {
           </Button>
         }
       />
+      {locationFilter && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "#991b1b" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <MapPin size={14} style={{ color: "#dc2626" }} />
+            <span>Showing Inventory vehicles located at: <strong>{locationFilter}</strong></span>
+          </div>
+          {onLocationChange && (
+            <button
+              onClick={() => onLocationChange("All Locations")}
+              style={{ background: "none", border: "none", color: "#b91c1c", fontWeight: 700, cursor: "pointer", textDecoration: "underline" }}
+            >
+              Clear Location Filter
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="toolbar filters" style={{ flexWrap: "wrap", gap: 8 }}>

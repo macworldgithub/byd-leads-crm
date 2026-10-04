@@ -10,20 +10,26 @@ import { useState, useEffect } from "react";
 const STATUS_OPTIONS = ["Proposed", "Confirmed", "Completed", "Cancelled", "No Show"];
 const YARD_OPTIONS = [
   "All Locations",
-  "BYD Caroline Springs",
   "BYD Melbourne City",
-  "BYD Melbourne CBD",
-  "BYD Fairfield",
-  "BYD South East",
+  "BYD Caroline Springs",
   "Holding Yard VIC",
-  "BYD Sydney",
-  "BYD Gold Coast",
+  "BYD Fairfield",
+  "BYD Nunawading",
+  "BYD Wodonga",
+  "BYD Wollongong",
+  "BYD Doncaster",
+  "BYD Haberfield",
+  "BYD Dealership",
 ];
 
 export function Appointments({
   onSelectProspect,
+  locationFilter = "",
+  onLocationChange,
 }: {
   onSelectProspect?: (prospect: any) => void;
+  locationFilter?: string;
+  onLocationChange?: (loc: string) => void;
 }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
@@ -31,7 +37,13 @@ export function Appointments({
   const [error, setError] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [selectedYard, setSelectedYard] = useState("All Locations");
+  const [selectedYard, setSelectedYard] = useState(locationFilter || "All Locations");
+
+  // Sync internal selectedYard with global locationFilter
+  useEffect(() => {
+    setSelectedYard(locationFilter || "All Locations");
+    setPage(1);
+  }, [locationFilter]);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -145,8 +157,10 @@ export function Appointments({
           <select
             value={selectedYard}
             onChange={(e) => {
-              setSelectedYard(e.target.value);
+              const val = e.target.value;
+              setSelectedYard(val);
               setPage(1);
+              onLocationChange?.(val);
             }}
             className="text-xs bg-white border border-[#e2e2e2] rounded-lg px-3 py-2 text-[#1e293b] font-medium outline-none focus:border-[#cf1d29] cursor-pointer"
           >

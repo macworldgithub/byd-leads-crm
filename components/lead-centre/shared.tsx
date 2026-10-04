@@ -349,8 +349,18 @@ export function Sidebar({
   );
 }
 
-export function TopBar({ onMenu }: { onMenu: () => void }) {
-  const { AlertCircle, CheckCircle2, ExternalLink, Menu } = require("lucide-react");
+export function TopBar({
+  onMenu,
+  selectedLocation = "All Locations",
+  onLocationChange,
+  locations = [],
+}: {
+  onMenu: () => void;
+  selectedLocation?: string;
+  onLocationChange?: (loc: string) => void;
+  locations?: string[];
+}) {
+  const { AlertCircle, CheckCircle2, ExternalLink, Menu, MapPin, X } = require("lucide-react");
   const [isProd, setIsProd] = typeof window !== "undefined"
     ? require("react").useState(() => localStorage.getItem("byd_leads_mode") === "production")
     : [false, () => {}];
@@ -375,9 +385,11 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
       ? "http://localhost:4002"
       : "https://crm.goodshowroom.com");
 
+  const isFiltered = Boolean(selectedLocation && selectedLocation !== "All Locations");
+
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0 12px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0 12px", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <button
           onClick={toggleMode}
           title="Click to toggle Production / Demonstration mode cutover (§8.2, AC-11)"
@@ -422,6 +434,66 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
           <span>Open Sales Floor CRM</span>
           <ExternalLink size={11} />
         </a>
+
+        {/* ── Overall Yard / Location Filter ── */}
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: isFiltered ? "#fef2f2" : "#f8fafc",
+            padding: "4px 10px",
+            borderRadius: 8,
+            border: isFiltered ? "1.5px solid #f87171" : "1px solid #e2e8f0",
+            transition: "all 0.2s ease",
+            boxShadow: isFiltered ? "0 1px 3px rgba(239, 68, 68, 0.1)" : "none",
+          }}
+        >
+          <MapPin size={13} style={{ color: isFiltered ? "#dc2626" : "#64748b", flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: isFiltered ? "#991b1b" : "#475569", whiteSpace: "nowrap" }}>
+            Location / Yard:
+          </span>
+          <select
+            value={selectedLocation}
+            onChange={(e) => onLocationChange?.(e.target.value)}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: 12,
+              fontWeight: 600,
+              color: isFiltered ? "#dc2626" : "#0f172a",
+              cursor: "pointer",
+              outline: "none",
+              paddingRight: 4,
+              maxWidth: 210,
+            }}
+          >
+            <option value="All Locations">All Locations / Yards</option>
+            {locations.map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
+              </option>
+            ))}
+          </select>
+          {isFiltered && (
+            <button
+              onClick={() => onLocationChange?.("All Locations")}
+              title="Clear Location Filter"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "2px",
+                display: "inline-flex",
+                alignItems: "center",
+                color: "#ef4444",
+                borderRadius: "50%",
+              }}
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       <button className="mobile-menu" onClick={onMenu} aria-label="Open navigation menu">

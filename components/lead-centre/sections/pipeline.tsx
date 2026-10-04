@@ -79,19 +79,29 @@ const CONTROL_TONES: Record<string, string> = {
 export function Pipeline({
   onModal,
   onSelectProspect,
+  locationFilter = "",
+  onLocationChange,
 }: {
   onModal: (type: "prospect" | "csv") => void;
   onSelectProspect?: (prospect: any) => void;
+  locationFilter?: string;
+  onLocationChange?: (loc: string) => void;
 }) {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [dealerFilter, setDealerFilter] = useState("");
+  const [dealerFilter, setDealerFilter] = useState(locationFilter);
   const [statusFilter, setStatusFilter] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [dealerships, setDealerships] = useState<string[]>([]);
+
+  // Sync internal dealer filter with global locationFilter
+  useEffect(() => {
+    setDealerFilter(locationFilter);
+    setPage(1);
+  }, [locationFilter]);
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -127,6 +137,7 @@ export function Pipeline({
   const handleDealerFilterChange = (val: string) => {
     setDealerFilter(val);
     setPage(1);
+    onLocationChange?.(val ? val : "All Locations");
   };
   const handleStatusFilterChange = (val: string) => {
     setStatusFilter(val);

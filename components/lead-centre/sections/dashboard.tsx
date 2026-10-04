@@ -9,6 +9,7 @@ import {
   Zap,
   ArrowRight,
   Loader2,
+  MapPin,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getDashboard, type DashboardData, type Lead } from "@/lib/api";
@@ -111,20 +112,27 @@ import { mapLeadToProspect } from "@/lib/prospect-mapper";
 export function Dashboard({
   onNavigate,
   onSelectProspect,
+  locationFilter = "",
+  onClearFilter,
 }: {
   onNavigate?: (page: string) => void;
   onSelectProspect?: (prospect: any) => void;
+  locationFilter?: string;
+  onClearFilter?: () => void;
 }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getDashboard()
+    setLoading(true);
+    const params: Record<string, string> = {};
+    if (locationFilter) params.dealer = locationFilter;
+    getDashboard(params)
       .then(setData)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [locationFilter]);
 
   if (loading) {
     return (
@@ -176,6 +184,25 @@ export function Dashboard({
 
   return (
     <div className="flex flex-col gap-4 sm:gap-5">
+      {locationFilter && (
+        <div className="flex items-center justify-between bg-red-50/80 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-950 shadow-sm">
+          <div className="flex items-center gap-2">
+            <MapPin size={15} className="text-red-600 shrink-0" />
+            <span>
+              Showing Dashboard metrics filtered for: <strong className="text-red-800">{locationFilter}</strong>
+            </span>
+          </div>
+          {onClearFilter && (
+            <button
+              onClick={onClearFilter}
+              className="font-bold text-red-700 hover:text-red-900 hover:underline cursor-pointer"
+            >
+              View All Yards
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <StatCard

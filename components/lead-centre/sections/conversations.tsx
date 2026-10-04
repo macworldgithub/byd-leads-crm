@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Bot, Activity, Search, Loader2 } from "lucide-react";
+import { MessageSquare, Bot, Activity, Search, Loader2, MapPin } from "lucide-react";
 import { Pill } from "../shared";
 import { Pagination } from "../pagination";
 import { getConversations, getLeads, type Conversation } from "@/lib/api";
@@ -11,8 +11,12 @@ type Filter = "all" | "ai" | "human";
 
 export function Conversations({
   onSelectProspect,
+  locationFilter = "",
+  onClearFilter,
 }: {
   onSelectProspect?: (prospect: any) => void;
+  locationFilter?: string;
+  onClearFilter?: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -29,6 +33,7 @@ export function Conversations({
     const params: Record<string, string> = {};
     if (filter !== "all") params.control = filter;
     if (search) params.q = search;
+    if (locationFilter) params.dealer = locationFilter;
     getConversations(params)
       .then((data) => {
         setConversations(data);
@@ -36,7 +41,7 @@ export function Conversations({
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [filter, search]);
+  }, [filter, search, locationFilter]);
 
   const handleConversationClick = async (c: Conversation) => {
     if (!onSelectProspect) return;
@@ -112,6 +117,23 @@ export function Conversations({
           ))}
         </div>
       </div>
+
+      {locationFilter && (
+        <div className="flex items-center justify-between bg-red-50/80 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-950 shadow-sm">
+          <div className="flex items-center gap-2">
+            <MapPin size={14} className="text-red-600 shrink-0" />
+            <span>Showing conversations for leads associated with: <strong className="text-red-800">{locationFilter}</strong></span>
+          </div>
+          {onClearFilter && (
+            <button
+              onClick={onClearFilter}
+              className="font-bold text-red-700 hover:text-red-900 hover:underline cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Search bar ── */}
       <div className="bg-white border border-[#e2e2e2] rounded-xl px-4 py-3 flex items-center gap-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import {
   Dashboard,
   Pipeline,
@@ -25,6 +25,7 @@ import {
   createDealership,
   updateDealership,
   createLead,
+  getLeadDealerships,
   type Dealership,
 } from "@/lib/api";
 
@@ -74,6 +75,45 @@ export default function LeadCentre() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Overall Location / Yard Filter State
+  const [selectedLocation, setSelectedLocation] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("byd_leads_yard") || "All Locations";
+    }
+    return "All Locations";
+  });
+  const [locations, setLocations] = useState<string[]>([]);
+
+  useEffect(() => {
+    getLeadDealerships()
+      .then((dealers) => {
+        const fallback = [
+          "BYD Melbourne City",
+          "BYD Caroline Springs",
+          "Holding Yard VIC",
+          "BYD Fairfield",
+          "BYD Nunawading",
+          "BYD Wodonga",
+          "BYD Wollongong",
+          "BYD Doncaster",
+          "BYD Haberfield",
+          "BYD Dealership",
+        ];
+        const combined = Array.from(new Set([...dealers, ...fallback]))
+          .filter(Boolean)
+          .sort();
+        setLocations(combined);
+      })
+      .catch(() => {});
+  }, [refreshKey]);
+
+  const handleLocationChange = (newLoc: string) => {
+    setSelectedLocation(newLoc);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("byd_leads_yard", newLoc);
+    }
+  };
 
   // Ref to trigger Settings page re-fetch after save
   const settingsRefreshRef = useRef<(() => void) | null>(null);
@@ -190,11 +230,15 @@ export default function LeadCentre() {
       );
     }
 
+    const activeYard = selectedLocation !== "All Locations" ? selectedLocation : "";
+
     return (
       ({
         Dashboard: (
           <Dashboard
-            key={refreshKey}
+            key={`${refreshKey}-${selectedLocation}`}
+            locationFilter={activeYard}
+            onClearFilter={() => handleLocationChange("All Locations")}
             onNavigate={(section) => {
               setSelectedProspect(null);
               setActive(section);
@@ -204,21 +248,33 @@ export default function LeadCentre() {
         ),
         "Leads Pipeline": (
           <Pipeline
-            key={refreshKey}
+            key={`${refreshKey}-${selectedLocation}`}
+            locationFilter={activeYard}
+            onLocationChange={handleLocationChange}
             onModal={setModal}
             onSelectProspect={(p) => setSelectedProspect(p)}
           />
         ),
         Conversations: (
           <Conversations
-            key={refreshKey}
+            key={`${refreshKey}-${selectedLocation}`}
+            locationFilter={activeYard}
+            onClearFilter={() => handleLocationChange("All Locations")}
             onSelectProspect={(p) => setSelectedProspect(p)}
           />
         ),
-        Inventory: <Inventory />,
+        Inventory: (
+          <Inventory
+            key={`${refreshKey}-${selectedLocation}`}
+            locationFilter={activeYard}
+            onLocationChange={handleLocationChange}
+          />
+        ),
         Appointments: (
           <Appointments
-            key={refreshKey}
+            key={`${refreshKey}-${selectedLocation}`}
+            locationFilter={activeYard}
+            onLocationChange={handleLocationChange}
             onSelectProspect={(p) => setSelectedProspect(p)}
           />
         ),
@@ -239,7 +295,7 @@ export default function LeadCentre() {
         ),
       }) as Record<string, React.ReactNode>
     )[active];
-  }, [active, openEdit, selectedProspect, refreshKey]);
+  }, [active, openEdit, selectedProspect, refreshKey, selectedLocation]);
 
   return (
     <div className="app-shell">
@@ -255,7 +311,12 @@ export default function LeadCentre() {
         onToggleCollapse={() => setCollapsed((prev) => !prev)}
       />
       <main className={`main ${collapsed ? "collapsed" : ""}`}>
-        <TopBar onMenu={() => setMenu(true)} />
+        <TopBar
+          onMenu={() => setMenu(true)}
+          selectedLocation={selectedLocation}
+          onLocationChange={handleLocationChange}
+          locations={locations}
+        />
         <div className="content">{content}</div>
       </main>
 

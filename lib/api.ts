@@ -46,7 +46,10 @@ export interface DashboardData {
   };
 }
 
-export const getDashboard = () => request<DashboardData>("/dashboard");
+export const getDashboard = (params?: Record<string, string>) => {
+  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+  return request<DashboardData>(`/dashboard${qs}`);
+};
 
 // ── Leads ────────────────────────────────────────────────────────────────────
 export interface Lead {
