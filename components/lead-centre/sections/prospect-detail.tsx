@@ -118,7 +118,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
 
   const [control, setControl] = useState<string>(
     prospect?.status?.toLowerCase().includes("human")
-      ? "Human: Demo Agent"
+      ? "Human: Sales Specialist"
       : "AI active"
   );
   const isAiActive = control === "AI active";
@@ -132,12 +132,11 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
   ]);
 
   const [funnelStep, setFunnelStep] = useState<number>(2);
-  const [customerInput, setCustomerInput] = useState("");
   const [agentInput, setAgentInput] = useState("");
 
   const [isLoadingConvo, setIsLoadingConvo] = useState(true);
-  const [isSimulating, setIsSimulating] = useState(false);
   const [isSendingAgent, setIsSendingAgent] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
   const [isTogglingControl, setIsTogglingControl] = useState(false);
   const [isSavingStage, setIsSavingStage] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -261,42 +260,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
     }
   };
 
-  // Click on a suggested responsechip -> populates the input field
-  const handleSelectSuggestion = (chipText: string) => {
-    setCustomerInput(chipText);
-  };
-
-  // Simulate prospect SMS response via backend API
-  const handleSimulateResponse = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const textToSend = customerInput.trim();
-    if (!textToSend || !conversation?._id || isSimulating) return;
-
-    setIsSimulating(true);
-    try {
-      const res = await simulateCustomerResponse(conversation._id, {
-        text: textToSend,
-        vehicle,
-        dealer: dealership,
-      });
-
-      setConversation(res.conversation);
-      setMessages(res.conversation.messages || []);
-      if (res.conversation.suggestedResponses) {
-        setSuggestedResponses(res.conversation.suggestedResponses);
-      }
-      if (res.conversation.qualification) {
-        setQualification(res.conversation.qualification);
-      }
-      setCustomerInput("");
-    } catch (err: any) {
-      console.error("Failed to simulate customer response:", err.message);
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
-  // Send manual agent reply via backend API
+  // Send manual agent reply via backend API (dispatches live SMS)
   const handleSendAgentReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const textToSend = agentInput.trim();
@@ -307,6 +271,11 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
       const res = await sendAgentReply(conversation._id, { text: textToSend });
       setConversation(res.conversation);
       setMessages(res.conversation.messages || []);
+      if (res.conversation.control) {
+        setControl(res.conversation.control);
+      } else {
+        setControl("Human");
+      }
       setAgentInput("");
     } catch (err: any) {
       console.error("Failed to send agent reply:", err.message);
@@ -360,7 +329,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
         assigned_to: allocatedConsultant,
         score: qualification ? 85 : 70,
         notes: allocationNotes.trim() || `Allocated from Lead Centre. Vehicle interest: ${vehicle}.`,
-        is_demo: !isProdMode,
+        is_demo: false,
       });
 
       const allocResult = {
@@ -553,7 +522,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                 <div>
                   <b className="text-gray-200 block text-xs">AI conversation active</b>
                   <p className="text-[11px] text-gray-400 m-0 mt-0.5 leading-relaxed">
-                    Representing {dealership}; no live SMS is sent in demo mode.
+                    Representing {dealership}; two-way SMS enabled via MobileMessage gateway.
                   </p>
                 </div>
               </div>
@@ -563,7 +532,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                 <div>
                   <b className="text-[#fbbf24] block text-xs">Human-controlled conversation</b>
                   <p className="text-[11px] text-amber-200/70 m-0 mt-0.5 leading-relaxed">
-                    Representing {dealership}; no live SMS is sent in demo mode.
+                    Representing {dealership}; manual replies dispatched directly to prospect mobile.
                   </p>
                 </div>
               </div>
@@ -576,10 +545,10 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
           <h2 className="text-lg sm:text-xl font-bold text-white leading-tight m-0">
             {isAiActive
               ? "AI is continuing to qualify timeline, budget, trade-in and finance needs"
-              : "Human follow-up active — Demo Agent owns the next response"}
+              : "Human follow-up active — Specialist owns the conversation"}
           </h2>
           <p className="text-xs sm:text-sm text-gray-400 mt-1 m-0">
-            Interactive demonstration reply captured; qualification continues.
+            Live two-way SMS messages synchronized directly with prospect mobile.
           </p>
         </div>
 
@@ -694,89 +663,55 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
               )}
             </div>
 
-            {/* Middle Status Notice */}
+            {/* Status & Control Notice */}
             {isAiActive && (
-              <div className="bg-[#e8fbf8] border border-[#a6f0e6] text-[#00756c] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium mt-3">
-                AI assistant is managing this conversation. Take over to reply manually.
+              <div className="bg-[#e8fbf8] border border-[#a6f0e6] text-[#00756c] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium mt-3 flex items-center justify-between gap-2">
+                <span>AI assistant is actively managing this conversation via MobileMessage.</span>
+                <button
+                  type="button"
+                  onClick={handleToggleControl}
+                  disabled={isTogglingControl}
+                  className="px-3 py-1 bg-[#00756c] hover:bg-[#005a53] text-white rounded-lg text-xs font-semibold shrink-0 transition-colors cursor-pointer"
+                >
+                  {isTogglingControl ? "Switching..." : "Take Over"}
+                </button>
               </div>
             )}
 
-            {/* ── Demo Agent Input (Appears when Human is controlling) ── */}
-            {!isAiActive && (
-              <form
-                onSubmit={handleSendAgentReply}
-                className="mt-4 pt-3 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
-              >
+            {/* ── Specialist SMS Input (Dispatched live via MobileMessage) ── */}
+            <form
+              onSubmit={handleSendAgentReply}
+              className="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-2"
+            >
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="text"
                   value={agentInput}
                   onChange={(e) => setAgentInput(e.target.value)}
-                  placeholder="Reply as Demo Agent... (compliance footer added automatically)"
+                  placeholder={`Send SMS to ${fullName.split(' ')[0] || "prospect"}... (sent live via MobileMessage)`}
                   className="flex-1 min-w-0 text-sm border border-gray-300 rounded-xl px-3.5 py-2.5 outline-none focus:border-[#cf1d29] transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={!agentInput.trim() || isSendingAgent}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-xl bg-[#cf1d29] hover:bg-[#b51823] disabled:opacity-50 text-white transition-colors shrink-0 shadow-xs"
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-semibold rounded-xl bg-[#cf1d29] hover:bg-[#b51823] disabled:opacity-50 text-white transition-colors shrink-0 shadow-xs cursor-pointer"
                 >
                   {isSendingAgent ? (
                     <Loader2 size={16} className="animate-spin" />
                   ) : (
                     <>
-                      <Send size={15} /> Send
+                      <Send size={15} /> Send SMS
                     </>
                   )}
                 </button>
-              </form>
-            )}
-
-            {/* ── Customer Response Simulation Box ── */}
-            <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-gray-500 uppercase tracking-wider text-[11px]">
-                  TRY A CUSTOMER RESPONSE
-                </span>
-                <span className="text-gray-400 text-[11px]">
-                  Click a prompt or write your own
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-500 px-1">
+                <span>ACMA Compliance: &ldquo;Reply STOP to opt out&rdquo; is appended automatically.</span>
+                <span className="text-emerald-700 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> Live SMS Gateway
                 </span>
               </div>
-
-              {/* Dynamic question chip options */}
-              <div className="flex flex-wrap gap-2">
-                {suggestedResponses.map((chip, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(chip)}
-                    className="text-xs bg-gray-50 hover:bg-gray-100 active:bg-gray-200 border border-gray-200 text-gray-700 rounded-full px-3 py-1.5 font-medium transition-colors"
-                  >
-                    {chip}
-                  </button>
-                ))}
-              </div>
-
-              {/* Simulation input form */}
-              <form
-                onSubmit={handleSimulateResponse}
-                className="flex items-center gap-2 border border-gray-300 rounded-xl p-1.5 focus-within:border-[#cf1d29] transition-colors bg-white mt-1"
-              >
-                <Smartphone size={16} className="text-gray-400 ml-2 shrink-0" />
-                <input
-                  type="text"
-                  value={customerInput}
-                  onChange={(e) => setCustomerInput(e.target.value)}
-                  placeholder="Demo: simulate a prospect SMS reply..."
-                  className="flex-1 min-w-0 text-sm outline-none px-1 text-gray-800 placeholder:text-gray-400 bg-transparent"
-                />
-                <button
-                  type="submit"
-                  disabled={!customerInput.trim() || isSimulating}
-                  className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 transition-colors shrink-0"
-                >
-                  {isSimulating ? "Simulating..." : "Simulate"}
-                </button>
-              </form>
-            </div>
+            </form>
           </div>
         </div>
 

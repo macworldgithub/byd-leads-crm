@@ -353,6 +353,7 @@ export default function LeadCentre() {
         onClose={() => setMenu(false)}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((prev) => !prev)}
+        user={user}
       />
       <main className={`main ${collapsed ? "collapsed" : ""}`}>
         <TopBar

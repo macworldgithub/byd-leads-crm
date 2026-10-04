@@ -435,6 +435,28 @@ export const getConversations = (params?: Record<string, string>) => {
   return request<Conversation[]>(`/conversations${qs}`);
 };
 
+export interface CreateConversationPayload {
+  prospectName: string;
+  phone: string;
+  dealer?: string;
+  vehicle?: string;
+  initialMessage?: string;
+  control?: "AI active" | "Human";
+  sendSms?: boolean;
+}
+
+export const createConversation = (payload: CreateConversationPayload) =>
+  request<{
+    success: boolean;
+    conversation: Conversation;
+    lead: Lead;
+    smsResult?: any;
+    smsError?: string;
+  }>("/conversations", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
 export const deleteConversation = (id: string) =>
   request<{ message: string }>(`/conversations/${id}`, { method: "DELETE" });
 

@@ -176,7 +176,7 @@ export function Dashboard({
     automationLogs && automationLogs.length > 0
       ? automationLogs
       : [
-          { id: "1", title: "Demo Dataset Refreshed", meta: "◷ just now · Demo System" },
+          { id: "1", title: "Live Pipeline Synchronized", meta: "◷ just now · System Engine" },
           { id: "2", title: "AI Qualification Active", meta: "◷ 5m ago · Ava AI" },
           { id: "3", title: "Callback Confirmed", meta: "◷ 1h ago · Ava AI" },
           { id: "4", title: "Appointment Booked", meta: "◷ 2h ago · BYD Fairfield" },
@@ -274,7 +274,7 @@ export function Dashboard({
           <div className="flex items-start justify-between mb-3">
             <div>
               <div className="text-[10px] tracking-widest font-bold text-[#cf1d29] uppercase mb-1">
-                Interactive Demonstration
+                Active Leads Pipeline
               </div>
               <h2 className="text-lg font-bold m-0 leading-snug">
                 Live prospect journeys

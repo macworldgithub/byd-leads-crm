@@ -604,6 +604,39 @@ export function SettingsPage({
               </Button>
             </div>
           </div>
+
+          {/* ── Two-Way SMS Webhook Instructions ── */}
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "14px 16px",
+              background: "#f0fdf4",
+              borderRadius: "8px",
+              border: "1px solid #bbf7d0",
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: "13px", color: "#166534", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Smartphone size={15} /> Two-Way SMS Inbound Webhook (MobileMessage)
+            </div>
+            <p style={{ fontSize: "12px", color: "#1e3a29", margin: "0 0 8px 0", lineHeight: "1.5" }}>
+              When a prospect replies to an SMS from their phone, MobileMessage posts the incoming message to your Lead Centre webhook. Set this Inbound URL in your MobileMessage portal:
+            </p>
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: "12px",
+                background: "#ffffff",
+                padding: "8px 12px",
+                borderRadius: "6px",
+                border: "1px solid #86efac",
+                color: "#14532d",
+                display: "inline-block",
+                wordBreak: "break-all",
+              }}
+            >
+              POST /api/conversations/inbound
+            </div>
+          </div>
         </Card>
       </div>
       <div style={{ marginBottom: "20px" }}>

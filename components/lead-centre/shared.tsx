@@ -260,6 +260,7 @@ export function Sidebar({
   onClose,
   collapsed = false,
   onToggleCollapse,
+  user,
 }: {
   active: string;
   onSelect: (x: string) => void;
@@ -267,6 +268,7 @@ export function Sidebar({
   onClose: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  user?: any;
 }) {
   const { ArrowRight, Menu } = require("lucide-react");
   const nav = [
@@ -338,10 +340,12 @@ export function Sidebar({
           ))}
         </nav>
         <div className="agent">
-          <div className="avatar">D</div>
+          <div className="avatar">
+            {(user?.name || "S").slice(0, 1).toUpperCase()}
+          </div>
           <div>
-            <strong>Demo Agent</strong>
-            <small>Demonstration mode</small>
+            <strong>{user?.name || "Sales Specialist"}</strong>
+            <small>{user?.role ? user.role.toUpperCase() : user?.locked_site || "Production Floor"}</small>
           </div>
         </div>
       </aside>
@@ -366,23 +370,7 @@ export function TopBar({
   lockedSite?: string;
   onLogout?: () => void;
 }) {
-  const { AlertCircle, CheckCircle2, ExternalLink, Menu, MapPin, X, LogOut, Lock } = require("lucide-react");
-  const [isProd, setIsProd] = typeof window !== "undefined"
-    ? require("react").useState(() => localStorage.getItem("byd_leads_mode") === "production")
-    : [false, () => {}];
-
-  const toggleMode = () => {
-    const next = !isProd;
-    if (next) {
-      if (confirm("Cut over Lead Centre to LIVE PRODUCTION MODE? Live qualified leads will be allocated to Sales Floor CRM.")) {
-        setIsProd(true);
-        localStorage.setItem("byd_leads_mode", "production");
-      }
-    } else {
-      setIsProd(false);
-      localStorage.setItem("byd_leads_mode", "demo");
-    }
-  };
+  const { CheckCircle2, ExternalLink, Menu, MapPin, X, LogOut, Lock } = require("lucide-react");
 
   const crmUrl =
     process.env.NEXT_PUBLIC_CRM_URL ||
@@ -396,9 +384,8 @@ export function TopBar({
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0 12px", gap: 12, flexWrap: "wrap" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <button
-          onClick={toggleMode}
-          title="Click to toggle Production / Demonstration mode cutover (§8.2, AC-11)"
+        <div
+          title="Lead Centre is running in live production mode with direct two-way SMS and live CRM allocation."
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -407,18 +394,15 @@ export function TopBar({
             borderRadius: 8,
             fontSize: 11,
             fontWeight: 700,
-            cursor: "pointer",
-            border: isProd ? "1px solid #10b981" : "1px solid #f59e0b",
-            background: isProd ? "#ecfdf5" : "#fffbeb",
-            color: isProd ? "#047857" : "#b45309",
+            border: "1px solid #10b981",
+            background: "#ecfdf5",
+            color: "#047857",
             letterSpacing: "0.05em",
-            transition: "all 0.15s ease",
           }}
         >
-          {isProd ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-          <span>{isProd ? "PRODUCTION MODE · ACTIVE" : "DEMONSTRATION MODE"}</span>
-          <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }}>(Cutover: §8.2)</span>
-        </button>
+          <CheckCircle2 size={13} />
+          <span>PRODUCTION MODE · ACTIVE</span>
+        </div>
 
         <a
           href={crmUrl}
