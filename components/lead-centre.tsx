@@ -27,7 +27,12 @@ import {
   createLead,
   getLeadDealerships,
   type Dealership,
+  getToken,
+  getLockedSite,
+  getStoredUser,
+  clearToken,
 } from "@/lib/api";
+import { LoginView } from "./auth/LoginView";
 
 // ── Dealership Form State ─────────────────────────────────────────────────────
 const EMPTY_DEALER: Omit<Dealership, "_id"> = {
@@ -76,9 +81,20 @@ export default function LeadCentre() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return Boolean(getToken());
+    }
+    return false;
+  });
+  const [user, setUser] = useState<any>(() => getStoredUser());
+  const lockedSite = (typeof window !== "undefined" ? getLockedSite() : "") || (user?.locked_site || "");
+
   // Overall Location / Yard Filter State
   const [selectedLocation, setSelectedLocation] = useState<string>(() => {
     if (typeof window !== "undefined") {
+      const lock = getLockedSite();
+      if (lock) return lock;
       return localStorage.getItem("byd_leads_yard") || "All Locations";
     }
     return "All Locations";
@@ -86,6 +102,11 @@ export default function LeadCentre() {
   const [locations, setLocations] = useState<string[]>([]);
 
   useEffect(() => {
+    if (lockedSite) {
+      setSelectedLocation(lockedSite);
+      setLocations([lockedSite]);
+      return;
+    }
     getLeadDealerships()
       .then((dealers) => {
         const fallback = [
@@ -106,13 +127,20 @@ export default function LeadCentre() {
         setLocations(combined);
       })
       .catch(() => {});
-  }, [refreshKey]);
+  }, [refreshKey, lockedSite]);
 
   const handleLocationChange = (newLoc: string) => {
+    if (lockedSite) return;
     setSelectedLocation(newLoc);
     if (typeof window !== "undefined") {
       localStorage.setItem("byd_leads_yard", newLoc);
     }
+  };
+
+  const handleLogout = () => {
+    clearToken();
+    setIsAuthenticated(false);
+    setUser(null);
   };
 
   // Ref to trigger Settings page re-fetch after save
@@ -230,13 +258,14 @@ export default function LeadCentre() {
       );
     }
 
-    const activeYard = selectedLocation !== "All Locations" ? selectedLocation : "";
+    const effectiveLocation = lockedSite || selectedLocation;
+    const activeYard = effectiveLocation !== "All Locations" ? effectiveLocation : "";
 
     return (
       ({
         Dashboard: (
           <Dashboard
-            key={`${refreshKey}-${selectedLocation}`}
+            key={`${refreshKey}-${effectiveLocation}`}
             locationFilter={activeYard}
             onClearFilter={() => handleLocationChange("All Locations")}
             onNavigate={(section) => {
@@ -248,7 +277,7 @@ export default function LeadCentre() {
         ),
         "Leads Pipeline": (
           <Pipeline
-            key={`${refreshKey}-${selectedLocation}`}
+            key={`${refreshKey}-${effectiveLocation}`}
             locationFilter={activeYard}
             onLocationChange={handleLocationChange}
             onModal={setModal}
@@ -257,7 +286,7 @@ export default function LeadCentre() {
         ),
         Conversations: (
           <Conversations
-            key={`${refreshKey}-${selectedLocation}`}
+            key={`${refreshKey}-${effectiveLocation}`}
             locationFilter={activeYard}
             onClearFilter={() => handleLocationChange("All Locations")}
             onSelectProspect={(p) => setSelectedProspect(p)}
@@ -265,14 +294,14 @@ export default function LeadCentre() {
         ),
         Inventory: (
           <Inventory
-            key={`${refreshKey}-${selectedLocation}`}
+            key={`${refreshKey}-${effectiveLocation}`}
             locationFilter={activeYard}
             onLocationChange={handleLocationChange}
           />
         ),
         Appointments: (
           <Appointments
-            key={`${refreshKey}-${selectedLocation}`}
+            key={`${refreshKey}-${effectiveLocation}`}
             locationFilter={activeYard}
             onLocationChange={handleLocationChange}
             onSelectProspect={(p) => setSelectedProspect(p)}
@@ -295,7 +324,22 @@ export default function LeadCentre() {
         ),
       }) as Record<string, React.ReactNode>
     )[active];
-  }, [active, openEdit, selectedProspect, refreshKey, selectedLocation]);
+  }, [active, openEdit, selectedProspect, refreshKey, selectedLocation, lockedSite]);
+
+  if (!isAuthenticated) {
+    return (
+      <LoginView
+        onSuccess={(loggedUser) => {
+          setUser(loggedUser);
+          setIsAuthenticated(true);
+          const lock = loggedUser?.locked_site || (typeof window !== "undefined" ? getLockedSite() : "");
+          if (lock) {
+            setSelectedLocation(lock);
+          }
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -313,9 +357,12 @@ export default function LeadCentre() {
       <main className={`main ${collapsed ? "collapsed" : ""}`}>
         <TopBar
           onMenu={() => setMenu(true)}
-          selectedLocation={selectedLocation}
+          selectedLocation={lockedSite || selectedLocation}
           onLocationChange={handleLocationChange}
-          locations={locations}
+          locations={lockedSite ? [lockedSite] : locations}
+          user={user}
+          lockedSite={lockedSite}
+          onLogout={handleLogout}
         />
         <div className="content">{content}</div>
       </main>

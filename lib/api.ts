@@ -6,17 +6,93 @@ const BASE =
     ? "http://localhost:4000/api"
     : "https://byd-leads-backend.vercel.app/api");
 
+const TOKEN_KEY = "byd_leads_token";
+
+export const getToken = (): string => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  }
+  return "";
+};
+
+export const setToken = (token: string) => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
+};
+
+export const clearToken = () => {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("byd_leads_user");
+  }
+};
+
+export const getLockedSite = (): string => {
+  try {
+    const token = getToken();
+    if (!token) return "";
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.locked_site || "";
+  } catch {
+    return "";
+  }
+};
+
+export const getStoredUser = (): any => {
+  if (typeof window !== "undefined") {
+    try {
+      const u = localStorage.getItem("byd_leads_user");
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = new Headers(options?.headers);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const token = getToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
+  if (res.status === 401) {
+    clearToken();
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error ?? "Request failed");
   }
   return res.json();
 }
+
+export const authApi = {
+  login: async (credentials: { email: string; password: string }) => {
+    const res = await request<{ success: boolean; access_token: string; user: any }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    });
+    if (res.access_token) {
+      setToken(res.access_token);
+      if (typeof window !== "undefined" && res.user) {
+        localStorage.setItem("byd_leads_user", JSON.stringify(res.user));
+      }
+    }
+    return res;
+  },
+  getMe: () => request<any>("/auth/me"),
+  logout: () => {
+    clearToken();
+  },
+};
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 export interface DashboardData {

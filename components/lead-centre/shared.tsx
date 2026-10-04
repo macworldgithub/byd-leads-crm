@@ -354,13 +354,19 @@ export function TopBar({
   selectedLocation = "All Locations",
   onLocationChange,
   locations = [],
+  user = null,
+  lockedSite = "",
+  onLogout,
 }: {
   onMenu: () => void;
   selectedLocation?: string;
   onLocationChange?: (loc: string) => void;
   locations?: string[];
+  user?: any;
+  lockedSite?: string;
+  onLogout?: () => void;
 }) {
-  const { AlertCircle, CheckCircle2, ExternalLink, Menu, MapPin, X } = require("lucide-react");
+  const { AlertCircle, CheckCircle2, ExternalLink, Menu, MapPin, X, LogOut, Lock } = require("lucide-react");
   const [isProd, setIsProd] = typeof window !== "undefined"
     ? require("react").useState(() => localStorage.getItem("byd_leads_mode") === "production")
     : [false, () => {}];
@@ -441,41 +447,51 @@ export function TopBar({
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
-            background: isFiltered ? "#fef2f2" : "#f8fafc",
+            background: lockedSite ? "#eff6ff" : isFiltered ? "#fef2f2" : "#f8fafc",
             padding: "4px 10px",
             borderRadius: 8,
-            border: isFiltered ? "1.5px solid #f87171" : "1px solid #e2e8f0",
+            border: lockedSite ? "1.5px solid #60a5fa" : isFiltered ? "1.5px solid #f87171" : "1px solid #e2e8f0",
             transition: "all 0.2s ease",
-            boxShadow: isFiltered ? "0 1px 3px rgba(239, 68, 68, 0.1)" : "none",
+            boxShadow: isFiltered || lockedSite ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
           }}
         >
-          <MapPin size={13} style={{ color: isFiltered ? "#dc2626" : "#64748b", flexShrink: 0 }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: isFiltered ? "#991b1b" : "#475569", whiteSpace: "nowrap" }}>
-            Location / Yard:
+          {lockedSite ? (
+            <Lock size={13} style={{ color: "#2563eb", flexShrink: 0 }} />
+          ) : (
+            <MapPin size={13} style={{ color: isFiltered ? "#dc2626" : "#64748b", flexShrink: 0 }} />
+          )}
+          <span style={{ fontSize: 11, fontWeight: 700, color: lockedSite ? "#1e40af" : isFiltered ? "#991b1b" : "#475569", whiteSpace: "nowrap" }}>
+            {lockedSite ? "Site Locked:" : "Location / Yard:"}
           </span>
-          <select
-            value={selectedLocation}
-            onChange={(e) => onLocationChange?.(e.target.value)}
-            style={{
-              background: "transparent",
-              border: "none",
-              fontSize: 12,
-              fontWeight: 600,
-              color: isFiltered ? "#dc2626" : "#0f172a",
-              cursor: "pointer",
-              outline: "none",
-              paddingRight: 4,
-              maxWidth: 210,
-            }}
-          >
-            <option value="All Locations">All Locations / Yards</option>
-            {locations.map((loc) => (
-              <option key={loc} value={loc}>
-                {loc}
-              </option>
-            ))}
-          </select>
-          {isFiltered && (
+          {lockedSite ? (
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8" }}>
+              {lockedSite}
+            </span>
+          ) : (
+            <select
+              value={selectedLocation}
+              onChange={(e) => onLocationChange?.(e.target.value)}
+              style={{
+                background: "transparent",
+                border: "none",
+                fontSize: 12,
+                fontWeight: 600,
+                color: isFiltered ? "#dc2626" : "#0f172a",
+                cursor: "pointer",
+                outline: "none",
+                paddingRight: 4,
+                maxWidth: 210,
+              }}
+            >
+              <option value="All Locations">All Locations / Yards</option>
+              {locations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          )}
+          {!lockedSite && isFiltered && (
             <button
               onClick={() => onLocationChange?.("All Locations")}
               title="Clear Location Filter"
@@ -496,9 +512,52 @@ export function TopBar({
         </div>
       </div>
 
-      <button className="mobile-menu" onClick={onMenu} aria-label="Open navigation menu">
-        <Menu size={20} />
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {user && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              background: "#f1f5f9",
+              padding: "4px 10px",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#334155",
+            }}
+          >
+            <span>{user.email || user.name || "User"}</span>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                title="Sign out of Lead Centre"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
+                  background: "#fee2e2",
+                  color: "#dc2626",
+                  border: "1px solid #fca5a5",
+                  padding: "2px 7px",
+                  borderRadius: 5,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                <LogOut size={11} />
+                <span>Logout</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        <button className="mobile-menu" onClick={onMenu} aria-label="Open navigation menu">
+          <Menu size={20} />
+        </button>
+      </div>
     </div>
   );
 }
