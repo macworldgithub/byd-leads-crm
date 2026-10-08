@@ -107,11 +107,11 @@ export function LoginView({ onSuccess }: LoginViewProps) {
             </button>
           </form>
 
-          <div className="pt-3 border-t border-slate-800/80 text-center">
+          {/* <div className="pt-3 border-t border-slate-800/80 text-center">
             <span className="text-[11px] font-mono text-slate-400">
               Site Locked Account: <strong className="text-white">BYD Nunawading</strong>
             </span>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer info */}
