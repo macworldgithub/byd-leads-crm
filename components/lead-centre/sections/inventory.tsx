@@ -105,6 +105,27 @@ function PlatformBadge({ platform }: { platform?: string }) {
       </span>
     );
   }
+  if (platform === "dealer_studio") {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          background: "linear-gradient(135deg, #78350f 0%, #d97706 100%)",
+          color: "#fff",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          padding: "2px 7px",
+          borderRadius: 4,
+          textTransform: "uppercase",
+        }}
+      >
+        DEALER STUDIO
+      </span>
+    );
+  }
   return (
     <span
       style={{
@@ -288,6 +309,7 @@ export function Inventory({
           <option value="">All platforms</option>
           <option value="virtualyard">Virtual Yard</option>
           <option value="autogate">Autogate</option>
+          <option value="dealer_studio">Dealer Studio</option>
           <option value="manual">Manual</option>
         </select>
         <select value={networkFilter} onChange={(e) => handleNetworkChange(e.target.value)}>

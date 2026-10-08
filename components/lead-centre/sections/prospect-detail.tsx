@@ -505,9 +505,11 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                   ? "bg-[#1e293b] text-[#38bdf8] border-[#0284c7]/40"
                   : prospect.platform === "autogate"
                   ? "bg-[#172554] text-[#60a5fa] border-[#2563eb]/40"
+                  : prospect.platform === "dealer_studio"
+                  ? "bg-[#451a03] text-[#fbbf24] border-[#d97706]/40"
                   : "bg-[#0b332b] text-[#34d399] border-[#105649]"
               }`}>
-                {prospect.platform === "virtualyard" ? "Virtual Yard" : prospect.platform === "autogate" ? "Autogate" : "SMS Connect"}
+                {prospect.platform === "virtualyard" ? "Virtual Yard" : prospect.platform === "autogate" ? "Autogate" : prospect.platform === "dealer_studio" ? "Dealer Studio" : "SMS Connect"}
               </span>
             )}
             <span className="bg-[#0b332b] text-[#34d399] border border-[#105649] text-[11px] font-medium px-2.5 py-1 rounded-md">

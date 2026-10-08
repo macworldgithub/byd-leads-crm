@@ -226,6 +226,9 @@ export function Prospect({
           {lead.platform === "autogate" && (
             <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)", color: "#fff", letterSpacing: "0.04em" }}>AG</span>
           )}
+          {lead.platform === "dealer_studio" && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "linear-gradient(135deg, #78350f 0%, #d97706 100%)", color: "#fff", letterSpacing: "0.04em" }}>DS</span>
+          )}
           <Pill tone={lead.tag === "Commitment" ? "purple" : "amber"}>
             {lead.tag}
           </Pill>

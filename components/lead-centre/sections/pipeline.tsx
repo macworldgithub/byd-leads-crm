@@ -385,6 +385,7 @@ export function Pipeline({
             <option value="">All platforms</option>
             <option value="virtualyard">Virtual Yard</option>
             <option value="autogate">Autogate</option>
+            <option value="dealer_studio">Dealer Studio</option>
             <option value="manual">Manual</option>
           </select>
 
@@ -519,6 +520,9 @@ export function Pipeline({
                       {l.platform === "autogate" && (
                         <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1d4ed8", letterSpacing: "0.05em" }}>AUTOGATE</span>
                       )}
+                      {l.platform === "dealer_studio" && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#fef3c7", color: "#92400e", letterSpacing: "0.05em" }}>DEALER STUDIO</span>
+                      )}
                       <span className="text-xs text-[#657083] ml-auto">{l.receivedDaysAgo}d ago</span>
                     </div>
                     <small className="text-xs text-[#657083]">{l.source} · {l.dealer}</small>
@@ -568,6 +572,9 @@ export function Pipeline({
                             )}
                             {l.platform === "autogate" && (
                               <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#dbeafe", color: "#1d4ed8", letterSpacing: "0.05em", width: "fit-content" }}>AUTOGATE</span>
+                            )}
+                            {l.platform === "dealer_studio" && (
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, background: "#fef3c7", color: "#92400e", letterSpacing: "0.05em", width: "fit-content" }}>DEALER STUDIO</span>
                             )}
                           </div>
                         </td>

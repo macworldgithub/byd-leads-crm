@@ -151,7 +151,7 @@ export interface Lead {
   paintColor: string;
   createdAt: string;
   // Platform
-  platform?: "manual" | "autogate" | "sms" | "virtualyard";
+  platform?: "manual" | "autogate" | "sms" | "virtualyard" | "dealer_studio";
   // Virtualyard extras
   leadId?: string;
   virtualyardId?: string;
@@ -320,7 +320,7 @@ export interface InventoryItem {
   price: string;
   lastSeen: string;
   // Platform
-  platform?: "manual" | "autogate" | "virtualyard";
+  platform?: "manual" | "autogate" | "virtualyard" | "dealer_studio";
   // Autogate rich fields
   identifier?: string;
   networkId?: string;
@@ -524,7 +524,7 @@ export interface Appointment {
   location?: string;
   bookedBy: string;
   status: string;
-  platform?: "manual" | "autogate" | "virtualyard";
+  platform?: "manual" | "autogate" | "virtualyard" | "dealer_studio";
   testDriveDate?: string | null;
 }
 
