@@ -1,10 +1,10 @@
-import type { ComponentType } from "react";
 import {
   CalendarDays,
   LayoutDashboard,
   MessageSquare,
   Settings,
   ShieldCheck,
+  UserCheck,
   Users,
   Warehouse,
 } from "lucide-react";
@@ -15,6 +15,7 @@ export const navigation = [
   { label: "Conversations", icon: MessageSquare },
   { label: "Inventory", icon: Warehouse },
   { label: "Appointments", icon: CalendarDays },
+  { label: "Staff", icon: UserCheck },
   { label: "Compliance", icon: ShieldCheck },
   { label: "Settings", icon: Settings },
 ] as const;

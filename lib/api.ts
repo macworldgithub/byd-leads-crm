@@ -711,3 +711,43 @@ export async function allocateLeadToSalesCrm(
   }
 }
 
+// ─── Staff API ───────────────────────────────────────────────────────────────
+export interface StaffMember {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  site?: string;
+  locked_site?: string;
+  position?: string;
+  phone?: string;
+  active: boolean;
+  last_login_at?: string;
+  createdAt?: string;
+}
+
+export interface StaffResponse {
+  success: boolean;
+  data: StaffMember[];
+  total: number;
+  userScope: {
+    hasFullAccess: boolean;
+    userSite: string;
+  };
+  availableSites: string[];
+}
+
+export const staffApi = {
+  getStaff: (site?: string, search?: string) => {
+    const params = new URLSearchParams();
+    if (site && site !== "All" && site !== "All Sites" && site !== "All Locations") {
+      params.set("site", site);
+    }
+    if (search) {
+      params.set("q", search);
+    }
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return request<StaffResponse>(`/staff${query}`);
+  },
+};
+

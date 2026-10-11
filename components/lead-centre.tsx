@@ -7,6 +7,7 @@ import {
   Conversations,
   Inventory,
   Appointments,
+  Staff,
   Compliance,
   SettingsPage,
   ProspectDetail,
@@ -336,6 +337,7 @@ export default function LeadCentre() {
             onSelectProspect={(p) => setSelectedProspect(p)}
           />
         ),
+        Staff: <Staff key={`${refreshKey}-${effectiveLocation}`} />,
         Compliance: (
           <Compliance
             key={refreshKey}

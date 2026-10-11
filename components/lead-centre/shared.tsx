@@ -280,6 +280,7 @@ export function Sidebar({
     "Conversations",
     "Inventory",
     "Appointments",
+    "Staff",
     "Compliance",
     "Settings",
   ].map((label, i) => {
@@ -289,6 +290,7 @@ export function Sidebar({
       require("lucide-react").MessageSquare,
       require("lucide-react").Warehouse,
       require("lucide-react").CalendarDays,
+      require("lucide-react").UserCheck,
       require("lucide-react").ShieldCheck,
       require("lucide-react").Settings,
     ];

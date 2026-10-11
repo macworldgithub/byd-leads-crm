@@ -3,6 +3,7 @@ export { Pipeline } from "./sections/pipeline";
 export { Conversations } from "./sections/conversations";
 export { Inventory } from "./sections/inventory";
 export { Appointments } from "./sections/appointments";
+export { Staff } from "./sections/staff";
 export { Compliance } from "./sections/compliance";
 export { SettingsPage } from "./sections/settings";
 export { ProspectDetail } from "./sections/prospect-detail";
