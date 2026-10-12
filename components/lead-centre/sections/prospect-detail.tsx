@@ -136,6 +136,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
 
   const [isLoadingConvo, setIsLoadingConvo] = useState(true);
   const [isSendingAgent, setIsSendingAgent] = useState(false);
+  const [agentSendError, setAgentSendError] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [isTogglingControl, setIsTogglingControl] = useState(false);
   const [isSavingStage, setIsSavingStage] = useState(false);
@@ -184,7 +185,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
     let isMounted = true;
     setIsLoadingConvo(true);
 
-    getConversationByLead(prospectId, {
+    const refresh = () => getConversationByLead(prospectId, {
       name: fullName,
       phone,
       dealer: dealership,
@@ -209,8 +210,14 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
         if (isMounted) setIsLoadingConvo(false);
       });
 
+    refresh();
+    const onFocus = () => { if (document.visibilityState === "visible") refresh(); };
+    const timer = window.setInterval(onFocus, 5000);
+    window.addEventListener("focus", onFocus);
     return () => {
       isMounted = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
     };
   }, [prospectId, fullName, phone, dealership, vehicle]);
 
@@ -267,6 +274,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
     if (!textToSend || !conversation?._id || isSendingAgent) return;
 
     setIsSendingAgent(true);
+    setAgentSendError(null);
     try {
       const res = await sendAgentReply(conversation._id, { text: textToSend });
       setConversation(res.conversation);
@@ -278,6 +286,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
       }
       setAgentInput("");
     } catch (err: any) {
+      setAgentSendError(err.message || "The SMS could not be sent.");
       console.error("Failed to send agent reply:", err.message);
     } finally {
       setIsSendingAgent(false);
@@ -681,6 +690,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
             )}
 
             {/* ── Specialist SMS Input (Dispatched live via MobileMessage) ── */}
+            {agentSendError && <p role="alert" className="text-sm text-red-700">{agentSendError}</p>}
             <form
               onSubmit={handleSendAgentReply}
               className="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-2"

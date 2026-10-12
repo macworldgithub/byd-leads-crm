@@ -26,7 +26,7 @@ import {
   type Dealership,
 } from "@/lib/api";
 import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-mapper";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type Filter = "all" | "ai" | "human";
 
@@ -47,6 +47,7 @@ export function Conversations({
   locationFilter?: string;
   onClearFilter?: () => void;
 }) {
+  const requestVersion = useRef(0);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -92,23 +93,30 @@ export function Conversations({
     );
   }, [formName, formVehicle, formDealer, locationFilter]);
 
-  const loadConversations = () => {
-    setLoading(true);
+  const loadConversations = (silent = false) => {
+    const version = ++requestVersion.current;
+    if (!silent) setLoading(true);
     const params: Record<string, string> = {};
     if (filter !== "all") params.control = filter;
     if (search) params.q = search;
     if (locationFilter) params.dealer = locationFilter;
     getConversations(params)
       .then((data) => {
+        if (version !== requestVersion.current) return;
+        setError(null);
         setConversations(data);
-        setPage(1);
+        if (!silent) setPage(1);
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .catch((err) => { if (version === requestVersion.current) setError(err.message); })
+      .finally(() => { if (version === requestVersion.current) setLoading(false); });
   };
 
   useEffect(() => {
     loadConversations();
+    const refresh = () => { if (document.visibilityState === "visible") loadConversations(true); };
+    const timer = window.setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    return () => { ++requestVersion.current; window.clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [filter, search, locationFilter]);
 
   const handleConversationClick = async (c: Conversation) => {
