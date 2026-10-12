@@ -206,9 +206,16 @@ export interface PaginatedResult<T> {
   limit: number;
 }
 
+const normalizeManualLead = (lead: Lead): Lead => ({
+  ...lead,
+  stage: lead.stage === "AI QUALIFYING" ? "IN FOLLOW-UP" : lead.stage,
+  control: /^ai/i.test(lead.control || "") ? "Human" : lead.control || "Human",
+  tag: lead.tag === "AI active" ? "Human assisted" : lead.tag,
+});
+
 export const getLeads = (params?: Record<string, string>) => {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-  return request<Lead[]>(`/leads${qs}`);
+  return request<Lead[]>(`/leads${qs}`).then((leads) => leads.map(normalizeManualLead));
 };
 
 export const getPaginatedLeads = (params?: Record<string, string | number>) => {
@@ -221,10 +228,13 @@ export const getPaginatedLeads = (params?: Record<string, string | number>) => {
     });
   }
   const qs = "?" + new URLSearchParams(queryObj).toString();
-  return request<PaginatedResult<Lead>>(`/leads${qs}`);
+  return request<PaginatedResult<Lead>>(`/leads${qs}`).then((result) => ({
+    ...result,
+    data: result.data.map(normalizeManualLead),
+  }));
 };
 
-export const getLead = (id: string) => request<Lead>(`/leads/${id}`);
+export const getLead = (id: string) => request<Lead>(`/leads/${id}`).then(normalizeManualLead);
 
 export const createLead = (data: Partial<Lead>) =>
   request<Lead>("/leads", { method: "POST", body: JSON.stringify(data) });
@@ -441,7 +451,7 @@ export interface CreateConversationPayload {
   dealer?: string;
   vehicle?: string;
   initialMessage?: string;
-  control?: "AI active" | "Human";
+  control?: "Human";
   sendSms?: boolean;
 }
 

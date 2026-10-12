@@ -7,7 +7,6 @@ import {
   Calendar,
   Car,
   CheckCircle2,
-  HandMetal,
   Loader2,
   Send,
   ShieldCheck,
@@ -25,9 +24,7 @@ import {
   deleteLead,
   deleteConversation,
   getConversationByLead,
-  simulateCustomerResponse,
   sendAgentReply,
-  toggleConversationControl,
   allocateLeadToSalesCrm,
   CRM_BASE_URL,
   type Conversation,
@@ -72,7 +69,7 @@ export interface ProspectDetailProps {
 // Map stage dropdown values to the backend stage enum
 const STAGE_MAP: Record<string, string> = {
   New: "NEW ENQUIRIES",
-  Contact: "AI QUALIFYING",
+  Contact: "IN FOLLOW-UP",
   Commitment: "TEST DRIVE BOOKED",
   Sold: "DELIVERED",
   Lost: "LOST",
@@ -81,6 +78,7 @@ const STAGE_MAP: Record<string, string> = {
 
 const STAGE_REVERSE_MAP: Record<string, string> = {
   "NEW ENQUIRIES": "New",
+  "IN FOLLOW-UP": "Contact",
   "AI QUALIFYING": "Contact",
   "TEST DRIVE BOOKED": "Commitment",
   DELIVERED: "Sold",
@@ -90,7 +88,7 @@ const STAGE_REVERSE_MAP: Record<string, string> = {
 
 const STAGE_TO_STATUS: Record<string, string> = {
   "NEW ENQUIRIES": "new",
-  "AI QUALIFYING": "qualification",
+  "IN FOLLOW-UP": "qualification",
   "TEST DRIVE BOOKED": "committed",
   DELIVERED: "sold",
   LOST: "lost",
@@ -116,29 +114,14 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
     return STAGE_REVERSE_MAP[raw] || raw;
   });
 
-  const [control, setControl] = useState<string>(
-    prospect?.status?.toLowerCase().includes("human")
-      ? "Human: Sales Specialist"
-      : "AI active"
-  );
-  const isAiActive = control === "AI active";
-
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [suggestedResponses, setSuggestedResponses] = useState<string[]>([
-    "I'm looking to buy this month",
-    "My budget is around $60k",
-    "I have a vehicle to trade",
-  ]);
-
   const [funnelStep, setFunnelStep] = useState<number>(2);
   const [agentInput, setAgentInput] = useState("");
 
   const [isLoadingConvo, setIsLoadingConvo] = useState(true);
   const [isSendingAgent, setIsSendingAgent] = useState(false);
   const [agentSendError, setAgentSendError] = useState<string | null>(null);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [isTogglingControl, setIsTogglingControl] = useState(false);
   const [isSavingStage, setIsSavingStage] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -178,7 +161,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isSimulating]);
+  }, [messages]);
 
   // Load conversation from backend
   useEffect(() => {
@@ -195,10 +178,6 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
         if (!isMounted) return;
         setConversation(convo);
         setMessages(convo.messages || []);
-        if (convo.control) setControl(convo.control);
-        if (convo.suggestedResponses && convo.suggestedResponses.length > 0) {
-          setSuggestedResponses(convo.suggestedResponses);
-        }
         if (convo.qualification) {
           setQualification(convo.qualification);
         }
@@ -249,24 +228,6 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
     }
   };
 
-  // Toggle control: Take Over (AI active -> Human) or Resume AI (Human -> AI active)
-  const handleToggleControl = async () => {
-    if (!conversation?._id) return;
-    setIsTogglingControl(true);
-
-    const action = isAiActive ? "takeover" : "resume";
-    try {
-      const res = await toggleConversationControl(conversation._id, { action });
-      setControl(res.control);
-      setConversation(res.conversation);
-      setMessages(res.conversation.messages || []);
-    } catch (err: any) {
-      console.error("Failed to toggle control:", err.message);
-    } finally {
-      setIsTogglingControl(false);
-    }
-  };
-
   // Send manual agent reply via backend API (dispatches live SMS)
   const handleSendAgentReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -279,11 +240,6 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
       const res = await sendAgentReply(conversation._id, { text: textToSend });
       setConversation(res.conversation);
       setMessages(res.conversation.messages || []);
-      if (res.conversation.control) {
-        setControl(res.conversation.control);
-      } else {
-        setControl("Human");
-      }
       setAgentInput("");
     } catch (err: any) {
       setAgentSendError(err.message || "The SMS could not be sent.");
@@ -356,11 +312,6 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
         localStorage.setItem(`crm_alloc_${prospectId}`, JSON.stringify(allocResult));
       }
 
-      // Automatically pause Lead Centre AI for human floor control (§8.2, AC-4)
-      if (isAiActive) {
-        handleToggleControl();
-      }
-
       setIsAllocateModalOpen(false);
     } catch (err: any) {
       console.error("Allocation error:", err);
@@ -392,16 +343,9 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                 {stage}
               </span>
 
-              {/* Control Tag */}
-              {isAiActive ? (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#eafaf1] text-[#0e8a49] border border-[#a3e9c4]">
-                  AI active
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa]">
-                  Human: {allocatedCrmData?.consultant || "Floor Consultant"}
-                </span>
-              )}
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                Manual SMS · {allocatedCrmData?.consultant || "Sales Team"}
+              </span>
 
               {/* CRM Allocation Tag (§8.2, AC-1, AC-4) */}
               {allocatedCrmData && (
@@ -461,27 +405,6 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
           </select>
 
           <button
-            onClick={handleToggleControl}
-            disabled={isTogglingControl}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${isAiActive
-              ? "bg-[#cf1d29] hover:bg-[#b51823] text-white shadow-sm"
-              : "bg-white border border-[#e2e2e2] text-gray-800 hover:bg-gray-50 shadow-sm"
-              }`}
-          >
-            {isTogglingControl ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : isAiActive ? (
-              <>
-                <UserCheck size={15} /> Take Over
-              </>
-            ) : (
-              <>
-                <Zap size={15} className="text-gray-600" /> Resume AI
-              </>
-            )}
-          </button>
-
-          <button
             onClick={handleDelete}
             disabled={isDeleting}
             className="p-2 border border-[#e2e2e2] rounded-lg text-gray-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -496,7 +419,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
         </div>
       </div>
 
-      {/* ── Hero Banner (Dark AI Qualification Card) ── */}
+      {/* ── Staff Follow-up Summary ── */}
       <div className="bg-[#191919] text-white rounded-2xl p-5 sm:p-7 shadow-md">
         {/* Top Badges & Mode Info */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-gray-800/80">
@@ -527,36 +450,22 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
           </div>
 
           <div className="sm:max-w-[420px]">
-            {isAiActive ? (
-              <div className="bg-[#202020] border border-gray-800 rounded-xl p-3 text-xs flex items-start gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0 mt-1" />
-                <div>
-                  <b className="text-gray-200 block text-xs">AI conversation active</b>
-                  <p className="text-[11px] text-gray-400 m-0 mt-0.5 leading-relaxed">
-                    Representing {dealership}; two-way SMS enabled via MobileMessage gateway.
-                  </p>
-                </div>
+            <div className="bg-[#2a2313] border border-[#78541e] rounded-xl p-3 text-xs flex items-start gap-2.5">
+              <User size={15} className="text-[#f59e0b] shrink-0 mt-0.5" />
+              <div>
+                <b className="text-[#fbbf24] block text-xs">Manual SMS</b>
+                <p className="text-[11px] text-amber-200/70 m-0 mt-0.5 leading-relaxed">
+                  Staff at {dealership} write and send each message.
+                </p>
               </div>
-            ) : (
-              <div className="bg-[#2a2313] border border-[#78541e] rounded-xl p-3 text-xs flex items-start gap-2.5">
-                <User size={15} className="text-[#f59e0b] shrink-0 mt-0.5" />
-                <div>
-                  <b className="text-[#fbbf24] block text-xs">Human-controlled conversation</b>
-                  <p className="text-[11px] text-amber-200/70 m-0 mt-0.5 leading-relaxed">
-                    Representing {dealership}; manual replies dispatched directly to prospect mobile.
-                  </p>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
         {/* Main Banner Heading */}
         <div className="py-5">
           <h2 className="text-lg sm:text-xl font-bold text-white leading-tight m-0">
-            {isAiActive
-              ? "AI is continuing to qualify timeline, budget, trade-in and finance needs"
-              : "Human follow-up active — Specialist owns the conversation"}
+            Staff manage this conversation and follow-up
           </h2>
           <p className="text-xs sm:text-sm text-gray-400 mt-1 m-0">
             Live two-way SMS messages synchronized directly with prospect mobile.
@@ -664,30 +573,8 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                 })
               )}
 
-              {isSimulating && (
-                <div className="flex items-center gap-2 text-xs text-gray-400 italic py-1 self-end">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-bounce" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-bounce [animation-delay:0.2s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-bounce [animation-delay:0.4s]" />
-                  AI Assistant replying...
-                </div>
-              )}
             </div>
-
-            {/* Status & Control Notice */}
-            {isAiActive && (
-              <div className="bg-[#e8fbf8] border border-[#a6f0e6] text-[#00756c] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium mt-3 flex items-center justify-between gap-2">
-                <span>AI assistant is actively managing this conversation via MobileMessage.</span>
-                <button
-                  type="button"
-                  onClick={handleToggleControl}
-                  disabled={isTogglingControl}
-                  className="px-3 py-1 bg-[#00756c] hover:bg-[#005a53] text-white rounded-lg text-xs font-semibold shrink-0 transition-colors cursor-pointer"
-                >
-                  {isTogglingControl ? "Switching..." : "Take Over"}
-                </button>
-              </div>
-            )}
+            <p className="text-xs text-gray-500 mt-3">Messages are sent only when you select Send SMS.</p>
 
             {/* ── Specialist SMS Input (Dispatched live via MobileMessage) ── */}
             {agentSendError && <p role="alert" className="text-sm text-red-700">{agentSendError}</p>}
@@ -819,7 +706,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
               </div>
             ) : (
               <p className="text-xs text-gray-500 m-0 leading-relaxed">
-                No appointments yet — the AI proposes times once the lead is qualified.
+                No appointments yet. Contact the prospect to arrange a time.
               </p>
             )}
           </div>
@@ -940,7 +827,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
             </div>
 
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-              <strong>SLA Notice:</strong> Allocating activates a 15-minute response SLA on the CRM floor desk and automatically pauses Lead Centre AI for human consultant takeover.
+              <strong>SLA Notice:</strong> Allocating activates a 15-minute response SLA on the CRM floor desk and assigns the prospect to a human sales consultant.
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">

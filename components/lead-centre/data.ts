@@ -1,6 +1,6 @@
 export const leadStages = [
   "NEW ENQUIRIES",
-  "AI QUALIFYING",
+  "IN FOLLOW-UP",
   "TEST DRIVE BOOKED",
 ] as const;
 export const sectionLabels = [
@@ -21,7 +21,6 @@ export const statusLabels = [
   "Contact",
   "Commitment",
   "Human assisted",
-  "AI active",
 ] as const;
 
 // Mock leads data

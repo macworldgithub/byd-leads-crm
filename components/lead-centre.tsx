@@ -65,7 +65,7 @@ const EMPTY_PROSPECT = {
   vehicle: "",
   enquiryDesc: "",
   enquiryNote: "",
-  sendSms: true,
+  sendSms: false,
 };
 
 export default function LeadCentre() {
@@ -238,7 +238,7 @@ export default function LeadCentre() {
         stage: "NEW ENQUIRIES",
         status: "new",
         tag: "Contact",
-        control: "AI active",
+        control: "Human",
         score: 10,
         source: "Manual",
         price: "$23,990",
@@ -503,7 +503,7 @@ export default function LeadCentre() {
               <div>
                 <b>Send opening SMS immediately</b>
                 <small>
-                  Starts the AI qualification conversation as soon as the prospect is created
+                  Starts the Staff follow-up conversation as soon as the prospect is created
                 </small>
               </div>
             </div>

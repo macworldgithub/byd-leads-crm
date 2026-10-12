@@ -250,7 +250,7 @@ export function Prospect({
           ? `Rep: ${lead.assignedTo}`
           : lead.tag === "Commitment"
           ? "Protect confirmed appointment"
-          : "AI qualifying intent and availability"}
+          : "In follow-up intent and availability"}
       </div>
     </div>
   );

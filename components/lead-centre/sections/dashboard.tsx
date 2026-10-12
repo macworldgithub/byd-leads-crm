@@ -177,8 +177,8 @@ export function Dashboard({
       ? automationLogs
       : [
           { id: "1", title: "Live Pipeline Synchronized", meta: "◷ just now · System Engine" },
-          { id: "2", title: "AI Qualification Active", meta: "◷ 5m ago · Ava AI" },
-          { id: "3", title: "Callback Confirmed", meta: "◷ 1h ago · Ava AI" },
+          { id: "2", title: "Staff Follow-up", meta: "◷ 5m ago · Sales Team" },
+          { id: "3", title: "Callback Confirmed", meta: "◷ 1h ago · Sales Team" },
           { id: "4", title: "Appointment Booked", meta: "◷ 2h ago · BYD Fairfield" },
         ];
 

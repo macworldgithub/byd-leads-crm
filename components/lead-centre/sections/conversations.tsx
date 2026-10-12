@@ -2,7 +2,6 @@
 
 import {
   MessageSquare,
-  Bot,
   Activity,
   Search,
   Loader2,
@@ -10,7 +9,6 @@ import {
   Plus,
   X,
   Send,
-  Sparkles,
   Smartphone,
   User,
   CheckCircle2,
@@ -28,7 +26,7 @@ import {
 import { mapLeadToProspect, createProspectFromMetadata } from "@/lib/prospect-mapper";
 import { useState, useEffect, useRef } from "react";
 
-type Filter = "all" | "ai" | "human";
+type Filter = "all" | "human";
 
 const POPULAR_VEHICLES = [
   "2025 BYD ATTO 3",
@@ -65,9 +63,8 @@ export function Conversations({
   const [formPhone, setFormPhone] = useState("");
   const [formDealer, setFormDealer] = useState("");
   const [formVehicle, setFormVehicle] = useState(POPULAR_VEHICLES[0]);
-  const [formControl, setFormControl] = useState<"AI active" | "Human">("AI active");
   const [formInitialMessage, setFormInitialMessage] = useState("");
-  const [formSendSms, setFormSendSms] = useState(true);
+  const [formSendSms, setFormSendSms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -82,16 +79,6 @@ export function Conversations({
       })
       .catch(() => {});
   }, [locationFilter]);
-
-  // Set default initial message when name, vehicle, or dealer changes
-  useEffect(() => {
-    const firstName = formName.trim() ? formName.trim().split(" ")[0] : "there";
-    const car = formVehicle || "BYD";
-    const dName = formDealer || locationFilter || "BYD Fairfield VIC";
-    setFormInitialMessage(
-      `Hi ${firstName}, thanks for your enquiry on the ${car} with ${dName}. I'm the virtual assistant for our sales team — happy to answer questions or set up a test drive. When are you looking to get into a new car? Reply STOP to opt out`
-    );
-  }, [formName, formVehicle, formDealer, locationFilter]);
 
   const loadConversations = (silent = false) => {
     const version = ++requestVersion.current;
@@ -160,6 +147,10 @@ export function Conversations({
       return;
     }
 
+    if (formSendSms && !formInitialMessage.trim()) {
+      setCreateError("Write an SMS message before sending.");
+      return;
+    }
     setIsSubmitting(true);
     setCreateError(null);
 
@@ -169,7 +160,7 @@ export function Conversations({
         phone: formPhone.trim(),
         dealer: formDealer || locationFilter || "BYD Fairfield VIC",
         vehicle: formVehicle,
-        control: formControl,
+        control: "Human",
         initialMessage: formInitialMessage.trim(),
         sendSms: formSendSms,
       });
@@ -179,7 +170,8 @@ export function Conversations({
       setFormName("");
       setFormPhone("");
       setFormVehicle(POPULAR_VEHICLES[0]);
-      setFormControl("AI active");
+      setFormInitialMessage("");
+      setFormSendSms(false);
 
       // Reload conversations
       loadConversations();
@@ -226,8 +218,7 @@ export function Conversations({
             {(
               [
                 { key: "all", icon: MessageSquare, label: "All" },
-                { key: "ai", icon: Bot, label: "AI Active" },
-                { key: "human", icon: Activity, label: "Human Control" },
+                { key: "human", icon: Activity, label: "Staff Messages" },
               ] as const
             ).map(({ key, icon: Icon, label }) => (
               <button
@@ -474,49 +465,12 @@ export function Conversations({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Initial Conversation Control
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormControl("AI active")}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-colors cursor-pointer ${
-                      formControl === "AI active"
-                        ? "border-[#cf1d29] bg-red-50/50 text-[#cf1d29]"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <Bot size={16} className="shrink-0" />
-                    <div>
-                      <div className="text-xs font-bold">AI Assistant Active</div>
-                      <div className="text-[11px] text-gray-500 leading-tight">Ava AI qualifies timeline & budget</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFormControl("Human")}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-colors cursor-pointer ${
-                      formControl === "Human"
-                        ? "border-[#cf1d29] bg-red-50/50 text-[#cf1d29]"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <User size={16} className="shrink-0" />
-                    <div>
-                      <div className="text-xs font-bold">Human Specialist</div>
-                      <div className="text-[11px] text-gray-500 leading-tight">Manual direct messaging</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
+              <p className="text-xs text-gray-600">Staff manage all SMS conversations manually.</p>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-semibold text-gray-700">
-                    Opening SMS Message
+                    Your SMS Message
                   </label>
                   <span className="text-[11px] text-gray-400">
                     {formInitialMessage.length} characters
@@ -543,7 +497,7 @@ export function Conversations({
                 <div className="text-xs">
                   <strong className="text-gray-900 block">Dispatch live SMS immediately to prospect mobile</strong>
                   <span className="text-gray-500 text-[11px]">
-                    Sends opening message through MobileMessage gateway upon creation.
+                    Send the message you wrote when you submit this form.
                   </span>
                 </div>
               </label>

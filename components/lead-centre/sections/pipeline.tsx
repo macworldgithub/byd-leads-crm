@@ -73,7 +73,7 @@ function StatCard({
 }
 
 const CONTROL_TONES: Record<string, string> = {
-  "AI active": "teal",
+  "Human": "teal",
 };
 
 export function Pipeline({
@@ -226,7 +226,7 @@ export function Pipeline({
   const byStage = (stage: string) => leads.filter((l) => l.stage === stage);
 
   const humanAssisted = leads.filter((l) => l.control?.toLowerCase().includes("human")).length;
-  const aiQualifying = leads.filter((l) => l.stage === "AI QUALIFYING").length;
+  const aiQualifying = leads.filter((l) => ["IN FOLLOW-UP", "AI QUALIFYING"].includes(l.stage)).length;
   const testDrives = leads.filter((l) => l.stage === "TEST DRIVE BOOKED").length;
 
   const mapLeadToProspect = (l: Lead) => ({
@@ -266,7 +266,7 @@ export function Pipeline({
             Lead journey board
           </h1>
           <p className="text-sm text-gray-300 mt-1">
-            {(stats.total || totalLeads).toLocaleString()} active prospects · AI qualification through to dealership commitment
+            {(stats.total || totalLeads).toLocaleString()} active prospects · Staff follow-up through to dealership commitment
           </p>
         </div>
 
@@ -317,7 +317,7 @@ export function Pipeline({
         <StatCard
           icon={Bot}
           value={stats.aiQualifying}
-          desc="AI qualifying"
+          desc="In follow-up"
           tone="teal"
           active={statusFilter === "qualification"}
         />
@@ -438,7 +438,7 @@ export function Pipeline({
           {(
             [
               ["NEW ENQUIRIES", "Awaiting first contact"],
-              ["AI QUALIFYING", "Conversation in progress"],
+              ["IN FOLLOW-UP", "Conversation in progress"],
               ["TEST DRIVE BOOKED", "Commitment confirmed"],
             ] as const
           ).map(([name, sub]) => {
