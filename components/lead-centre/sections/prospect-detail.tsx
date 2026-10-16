@@ -26,6 +26,9 @@ import {
   getConversationByLead,
   sendAgentReply,
   allocateLeadToSalesCrm,
+  staffApi,
+  getLockedSite,
+  type StaffMember,
   CRM_BASE_URL,
   type Conversation,
   type ConversationMessage,
@@ -128,10 +131,23 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
 
   // Sales CRM Allocation state (§8.2, AC-4, AC-11)
   const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
-  const [allocatedSite, setAllocatedSite] = useState<string>(dealership.includes("Melbourne") ? "Melbourne City" : "Fairfield");
-  const [allocatedConsultant, setAllocatedConsultant] = useState("Alex Rivers");
+  const [allocatedSite, setAllocatedSite] = useState<string>(() => getLockedSite() || dealership.replace(/\s+VIC$/i, ''));
+  const [allocatedConsultant, setAllocatedConsultant] = useState("");
+  const [allocationStaff, setAllocationStaff] = useState<StaffMember[]>([]);
+  const [staffError, setStaffError] = useState('');
   const [allocationNotes, setAllocationNotes] = useState("");
   const [isAllocating, setIsAllocating] = useState(false);
+  useEffect(() => {
+    if (!isAllocateModalOpen) return;
+    let cancelled = false;
+    setAllocatedConsultant('');
+    setAllocationStaff([]);
+    setStaffError('');
+    staffApi.getStaff(allocatedSite).then((res) => {
+      if (!cancelled) setAllocationStaff(res.data);
+    }).catch(() => { if (!cancelled) setStaffError('Unable to load site staff. Please try again.'); });
+    return () => { cancelled = true; };
+  }, [allocatedSite, isAllocateModalOpen]);
   const [allocatedCrmData, setAllocatedCrmData] = useState<any>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(`crm_alloc_${prospectId}`);
@@ -280,6 +296,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
   // Sales Floor Allocation (§8.2, AC-4, AC-11)
   const handleAllocateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!allocationStaff.some(member => member.name === allocatedConsultant)) return;
     setIsAllocating(true);
     const isProdMode = typeof window !== "undefined" && localStorage.getItem("byd_leads_mode") === "production";
 
@@ -786,13 +803,10 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
               <select
                 value={allocatedSite}
                 onChange={(e) => setAllocatedSite(e.target.value)}
+                disabled={Boolean(getLockedSite())}
                 className="w-full text-xs p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white outline-none"
               >
-                <option value="Fairfield">BYD Fairfield VIC</option>
-                <option value="Melbourne City">BYD Melbourne City VIC</option>
-                <option value="Doncaster">BYD Doncaster VIC</option>
-                <option value="Nunawading">BYD Nunawading VIC</option>
-                <option value="Caroline Springs">BYD Caroline Springs VIC</option>
+                {Array.from(new Set([allocatedSite, 'BYD Fairfield', 'BYD Melbourne City', 'BYD Doncaster', 'BYD Nunawading', 'BYD Caroline Springs', 'Denza Melbourne', 'Clayton South'])).map(site => <option key={site} value={site}>{site}</option>)}
               </select>
             </div>
 
@@ -805,12 +819,10 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                 onChange={(e) => setAllocatedConsultant(e.target.value)}
                 className="w-full text-xs p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white outline-none"
               >
-                <option value="Alex Rivers">Alex Rivers (Senior Consultant)</option>
-                <option value="Sarah Chen">Sarah Chen (EV Specialist)</option>
-                <option value="Marcus Vance">Marcus Vance (Fleet Consultant)</option>
-                <option value="Liam Davies">Liam Davies (Consultant)</option>
-                <option value="Chloe Bennett">Chloe Bennett (Consultant)</option>
+                <option value="">Select staff member</option>
+                {allocationStaff.map(member => <option key={member.email} value={member.name}>{member.name}</option>)}
               </select>
+              {staffError && <p role="alert" className="text-xs text-red-700">{staffError}</p>}
             </div>
 
             <div>
@@ -840,7 +852,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
               </button>
               <button
                 type="submit"
-                disabled={isAllocating}
+                disabled={isAllocating || !allocatedConsultant}
                 className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase tracking-wider shadow-sm flex items-center gap-1.5"
               >
                 {isAllocating ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
