@@ -472,7 +472,7 @@ export function TopBar({
                 maxWidth: 210,
               }}
             >
-              <option value="All Locations">All Locations / Yards</option>
+              {(!user?.allowed_sites || user.all_sites) && <option value="All Locations">All Locations / Yards</option>}
               {locations.map((loc) => (
                 <option key={loc} value={loc}>
                   {loc}
@@ -480,7 +480,7 @@ export function TopBar({
               ))}
             </select>
           )}
-          {!lockedSite && isFiltered && (
+          {!lockedSite && isFiltered && (!user?.allowed_sites || user.all_sites) && (
             <button
               onClick={() => onLocationChange?.("All Locations")}
               title="Clear Location Filter"

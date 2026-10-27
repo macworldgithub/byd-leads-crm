@@ -60,6 +60,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  if (typeof window !== 'undefined' && !path.startsWith('/auth/')) {
+    const site = localStorage.getItem('byd_leads_yard');
+    if (site) headers.set('X-Site', site);
+  }
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers,
@@ -84,6 +88,7 @@ export const authApi = {
       setToken(res.access_token);
       if (typeof window !== "undefined" && res.user) {
         localStorage.setItem("byd_leads_user", JSON.stringify(res.user));
+        if (res.user.allowed_sites && !res.user.all_sites) localStorage.setItem('byd_leads_yard', res.user.site || res.user.allowed_sites[0]);
       }
     }
     return res;

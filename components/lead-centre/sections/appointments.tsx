@@ -9,6 +9,16 @@ import { useState, useEffect } from "react";
 
 const STATUS_OPTIONS = ["Proposed", "Confirmed", "Completed", "Cancelled", "No Show"];
 const TYPE_OPTIONS = ["Test Drive", "Showroom Visit", "Vehicle Delivery", "Service Consultation"];
+function appointmentWhen(appt: Appointment) {
+  const value = appt.testDriveDate || appt.when;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return appt.when || "Date not provided";
+  return date.toLocaleString("en-AU", {
+    timeZone: "Australia/Melbourne",
+    weekday: "short", day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  });
+}
 const YARD_OPTIONS = [
   "All Locations",
   "BYD Melbourne City",
@@ -277,7 +287,7 @@ export function Appointments({
                     onClick={() => handleAppointmentClick(appt)}
                     className="hover:bg-[#f9f9f9] cursor-pointer transition-colors"
                   >
-                    <td><b>{appt.when}</b></td>
+                    <td><b>{appointmentWhen(appt)}</b></td>
                     <td className="red-text">
                       <b className="hover:underline">{appt.prospectName}</b>
                       <small>{appt.phone}</small>

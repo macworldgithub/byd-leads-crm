@@ -137,6 +137,15 @@ export default function LeadCentre() {
       setLocations([lockedSite]);
       return;
     }
+    if (user?.allowed_sites && !user.all_sites) {
+      setLocations(user.allowed_sites);
+      if (!user.allowed_sites.includes(selectedLocation)) {
+        const site = user.allowed_sites[0];
+        setSelectedLocation(site);
+        localStorage.setItem('byd_leads_yard', site);
+      }
+      return;
+    }
     getLeadDealerships()
       .then((dealers) => {
         const fallback = [
@@ -157,10 +166,11 @@ export default function LeadCentre() {
         setLocations(combined);
       })
       .catch(() => {});
-  }, [refreshKey, lockedSite]);
+  }, [refreshKey, lockedSite, user]);
 
   const handleLocationChange = (newLoc: string) => {
     if (lockedSite) return;
+    if (user?.allowed_sites && !user.all_sites && !user.allowed_sites.includes(newLoc)) return;
     setSelectedLocation(newLoc);
     if (typeof window !== "undefined") {
       localStorage.setItem("byd_leads_yard", newLoc);
