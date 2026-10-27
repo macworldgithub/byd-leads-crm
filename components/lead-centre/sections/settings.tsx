@@ -48,7 +48,7 @@ export function SettingsPage({
   // ── SMS Configuration State (Auto-fetched on mount) ─────────────────────
   const [smsUsername, setSmsUsername] = useState("UKeOAk");
   const [smsApiKey, setSmsApiKey] = useState("8qIw3KM6gh7C779tVhzFnK1bBZUHgmOFk5omhWtTEZp");
-  const [smsSenderId, setSmsSenderId] = useState("+61468104118");
+  const [smsSenderId, setSmsSenderId] = useState("HARMONY");
   const [simulationMode, setSimulationMode] = useState(false);
   const [smsConnectionStatus, setSmsConnectionStatus] = useState<"untested" | "connected" | "failed">("connected");
   const [creditBalance, setCreditBalance] = useState<number | null>(4647);
@@ -434,7 +434,7 @@ export function SettingsPage({
             <label>
               Sender ID / Virtual Number
               <input
-                placeholder="e.g. +61468104118 or BYD-DIRECT"
+                placeholder="e.g. HARMONY"
                 value={smsSenderId}
                 onChange={(e) => setSmsSenderId(e.target.value)}
                 disabled={savingSms || testingSms}
