@@ -158,6 +158,10 @@ export default function LeadCentre() {
           "BYD Wollongong",
           "BYD Doncaster",
           "BYD Haberfield",
+          "Warehouse",
+          "Clayton",
+          "VELO",
+          "In Transit",
           "BYD Dealership",
         ];
         const combined = Array.from(new Set([...dealers, ...fallback]))

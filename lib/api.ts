@@ -331,11 +331,12 @@ export interface InventoryItem {
   model: string;
   paint: string;
   location: string;
+  orderYard?: string;
   status: string;
   price: string;
   lastSeen: string;
   // Platform
-  platform?: "manual" | "autogate" | "virtualyard" | "dealer_studio";
+  platform?: "manual" | "autogate" | "virtualyard" | "dealer_studio" | "shirley";
   // Autogate rich fields
   identifier?: string;
   networkId?: string;
@@ -389,12 +390,40 @@ export interface InventoryItem {
   };
   onCarsalesNetwork?: boolean | null;
   sellerIdentifier?: string | null;
+  shirleyData?: {
+    inStockDate?: string;
+    daysOfInventory?: number;
+    deliveryDate?: string;
+    delivered?: string;
+    allocationDate?: string;
+    salesConsultant?: string;
+    paymentTermDue?: string;
+    dueDate?: string;
+    inBoundDate?: string;
+    outBoundStore?: string;
+    poNumber?: string;
+    registrationDate?: string;
+    notes?: string;
+    buildMonth?: string;
+    sources?: string[];
+  };
 }
 
-export const getInventory = (params?: Record<string, string>) => {
+export const getInventory = async (params?: Record<string, string>) => {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-  return request<InventoryItem[]>(`/inventory${qs}`);
+  const res: any = await request<any>(`/inventory${qs}`);
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
 };
+
+export const getInventoryFilters = () =>
+  request<{
+    locations: string[];
+    statuses: string[];
+    models: string[];
+    platforms: string[];
+  }>("/inventory/filters");
 
 export const getPaginatedInventory = (params?: Record<string, string | number>) => {
   const queryObj: Record<string, string> = { paginated: "true" };
