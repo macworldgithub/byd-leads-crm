@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { Card, Button, Pill, PageHeader } from "../shared";
 import { Pagination } from "../pagination";
-import { getInventory, type InventoryItem } from "@/lib/api";
+import { getInventory, getInventoryFilters, type InventoryItem, type InventoryStats } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -269,11 +269,15 @@ export function Inventory({
   onLocationChange?: (loc: string) => void;
 } = {}) {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [stats, setStats] = useState<InventoryStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filters state
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [modelFilter, setModelFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [yardFilter, setYardFilter] = useState(locationFilter || "");
@@ -283,6 +287,14 @@ export function Inventory({
 
   // Vehicle Details Modal
   const [selectedVehicle, setSelectedVehicle] = useState<InventoryItem | null>(null);
+
+  // Dynamic filter options from backend
+  const [filterOptions, setFilterOptions] = useState<{
+    locations: string[];
+    statuses: string[];
+    models: string[];
+    platforms: string[];
+  } | null>(null);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -295,10 +307,38 @@ export function Inventory({
     }
   }, [locationFilter]);
 
+  // Load distinct filter options on mount
+  useEffect(() => {
+    getInventoryFilters()
+      .then((opts) => {
+        if (opts) setFilterOptions(opts);
+      })
+      .catch(() => {
+        // Fall back to built-in options
+      });
+  }, []);
+
+  // Debounce search input (250ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset page to 1 when any filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, modelFilter, statusFilter, yardFilter, conditionFilter, platformFilter, networkFilter]);
+
   const fetchInventory = useCallback(() => {
     setLoading(true);
-    const params: Record<string, string> = {};
-    if (search) params.q = search;
+    setError(null);
+    const params: Record<string, string | number> = {
+      page,
+      limit: pageSize,
+    };
+    if (debouncedSearch) params.q = debouncedSearch;
     if (modelFilter) params.model = modelFilter;
     if (statusFilter) params.status = statusFilter;
     const effectiveYard = yardFilter || locationFilter;
@@ -309,64 +349,59 @@ export function Inventory({
     if (platformFilter) params.platform = platformFilter;
 
     getInventory(params)
-      .then((data) => {
-        let filtered = data;
-        // Client-side network filter (not a backend param)
-        if (networkFilter === "published") filtered = filtered.filter((i: InventoryItem) => i.onCarsalesNetwork === true);
-        if (networkFilter === "unpublished") filtered = filtered.filter((i: InventoryItem) => i.onCarsalesNetwork === false);
-        setItems(filtered);
+      .then((res) => {
+        let list = res.data || [];
+        // Client-side network filter
+        if (networkFilter === "published") list = list.filter((i: InventoryItem) => i.onCarsalesNetwork === true);
+        if (networkFilter === "unpublished") list = list.filter((i: InventoryItem) => i.onCarsalesNetwork === false);
+        setItems(list);
+        setTotalCount(res.total ?? list.length);
+        setTotalPages(res.totalPages ?? Math.ceil((res.total || 1) / pageSize) ?? 1);
+        if (res.stats) {
+          setStats(res.stats);
+        }
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(err.message || "Failed to load inventory"))
       .finally(() => setLoading(false));
-  }, [search, modelFilter, statusFilter, yardFilter, locationFilter, conditionFilter, platformFilter, networkFilter]);
+  }, [page, pageSize, debouncedSearch, modelFilter, statusFilter, yardFilter, locationFilter, conditionFilter, platformFilter, networkFilter]);
 
   useEffect(() => {
-    setPage(1);
     fetchInventory();
   }, [fetchInventory]);
 
-  // Aggregate Counts for Summary Chips
-  const autogateCount = items.filter((i) => i.platform === "autogate").length;
-  const virtualyardCount = items.filter((i) => i.platform === "virtualyard").length;
-  const shirleyCount = items.filter((i) => i.platform === "shirley").length;
-  const inStockCount = items.filter((i) => i.status === "In Stock" || i.status === "Available" || i.itemStatus === "InStock").length;
-  const deliveredCount = items.filter((i) => i.status === "Delivered").length;
-  const inTransitCount = items.filter((i) => i.status === "In Transit").length;
-  const demoCount = items.filter((i) => i.status === "Demo" || i.condition === "Demo").length;
-
-  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
-  const totalPages = Math.ceil(items.length / pageSize) || 1;
+  // Aggregate Counts for Summary Chips (prioritizes backend global stats, fallbacks to loaded items)
+  const autogateCount = stats?.autogate ?? items.filter((i) => i.platform === "autogate").length;
+  const virtualyardCount = stats?.virtualyard ?? items.filter((i) => i.platform === "virtualyard").length;
+  const shirleyCount = stats?.shirley ?? items.filter((i) => i.platform === "shirley").length;
+  const inStockCount = stats?.inStock ?? items.filter((i) => i.status === "In Stock" || i.status === "Available" || i.itemStatus === "InStock").length;
+  const deliveredCount = stats?.delivered ?? items.filter((i) => i.status === "Delivered").length;
+  const inTransitCount = stats?.inTransit ?? items.filter((i) => i.status === "In Transit").length;
+  const demoCount = stats?.demo ?? items.filter((i) => i.status === "Demo" || i.condition === "Demo").length;
+  const totalVehicles = stats?.total ?? totalCount ?? items.length;
 
   const handleSearchChange = (val: string) => {
     setSearch(val);
-    setPage(1);
   };
   const handleModelChange = (val: string) => {
     setModelFilter(val);
-    setPage(1);
   };
   const handleStatusChange = (val: string) => {
     setStatusFilter(val);
-    setPage(1);
   };
   const handleYardChange = (val: string) => {
     setYardFilter(val);
-    setPage(1);
     if (onLocationChange) {
       onLocationChange(val || "All Locations");
     }
   };
   const handleConditionChange = (val: string) => {
     setConditionFilter(val);
-    setPage(1);
   };
   const handlePlatformChange = (val: string) => {
     setPlatformFilter(val);
-    setPage(1);
   };
   const handleNetworkChange = (val: string) => {
     setNetworkFilter(val);
-    setPage(1);
   };
 
   const handleClearYard = () => {
@@ -380,7 +415,7 @@ export function Inventory({
     <>
       <PageHeader
         title="Inventory Monitor"
-        subtitle={`${inStockCount} in stock · ${shirleyCount} Shirley Inventory · ${virtualyardCount} Virtual Yard · ${autogateCount} Autogate · ${items.length} total vehicles`}
+        subtitle={`${inStockCount} in stock · ${shirleyCount} Shirley Inventory · ${virtualyardCount} Virtual Yard · ${autogateCount} Autogate · ${totalVehicles.toLocaleString()} total vehicles`}
         action={
           <Button primary onClick={fetchInventory}>
             <RefreshCw size={16} /> Sync Now
@@ -439,35 +474,55 @@ export function Inventory({
         {/* Yard / Location Filter */}
         <select value={yardFilter} onChange={(e) => handleYardChange(e.target.value)}>
           <option value="">All Yards & Locations</option>
-          <option value="Warehouse">Warehouse (Main Holding)</option>
-          <option value="Clayton">Clayton Storage</option>
-          <option value="BYD Caroline Springs">BYD Caroline Springs</option>
-          <option value="BYD Fairfield">BYD Fairfield</option>
-          <option value="BYD Nunawading">BYD Nunawading</option>
-          <option value="BYD Melbourne City">BYD Melbourne City</option>
-          <option value="Holding Yard VIC">Holding Yard VIC</option>
-          <option value="BYD Wodonga">BYD Wodonga</option>
-          <option value="BYD Doncaster">BYD Doncaster</option>
-          <option value="VELO">VELO Delivery</option>
-          <option value="DENZA Kew">DENZA Kew</option>
-          <option value="DENZA Kingsway">DENZA Kingsway</option>
-          <option value="In Transit">In Transit</option>
+          {filterOptions?.locations && filterOptions.locations.length > 0 ? (
+            filterOptions.locations.map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
+              </option>
+            ))
+          ) : (
+            <>
+              <option value="Warehouse">Warehouse (Main Holding)</option>
+              <option value="Clayton">Clayton Storage</option>
+              <option value="BYD Caroline Springs">BYD Caroline Springs</option>
+              <option value="BYD Fairfield">BYD Fairfield</option>
+              <option value="BYD Nunawading">BYD Nunawading</option>
+              <option value="BYD Melbourne City">BYD Melbourne City</option>
+              <option value="Holding Yard VIC">Holding Yard VIC</option>
+              <option value="BYD Wodonga">BYD Wodonga</option>
+              <option value="BYD Doncaster">BYD Doncaster</option>
+              <option value="VELO">VELO Delivery</option>
+              <option value="DENZA Kew">DENZA Kew</option>
+              <option value="DENZA Kingsway">DENZA Kingsway</option>
+              <option value="In Transit">In Transit</option>
+            </>
+          )}
         </select>
 
         {/* Model Filter */}
         <select value={modelFilter} onChange={(e) => handleModelChange(e.target.value)}>
           <option value="">All models</option>
-          <option value="ATTO 1">ATTO 1</option>
-          <option value="ATTO 2">ATTO 2</option>
-          <option value="ATTO 3">ATTO 3</option>
-          <option value="DOLPHIN">DOLPHIN</option>
-          <option value="SEAL">SEAL</option>
-          <option value="SEAL 6">SEAL 6</option>
-          <option value="SEALION 5">SEALION 5</option>
-          <option value="SEALION 6">SEALION 6</option>
-          <option value="SEALION 7">SEALION 7</option>
-          <option value="SEALION 8">SEALION 8</option>
-          <option value="SHARK 6">SHARK 6</option>
+          {filterOptions?.models && filterOptions.models.length > 0 ? (
+            filterOptions.models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))
+          ) : (
+            <>
+              <option value="ATTO 1">ATTO 1</option>
+              <option value="ATTO 2">ATTO 2</option>
+              <option value="ATTO 3">ATTO 3</option>
+              <option value="DOLPHIN">DOLPHIN</option>
+              <option value="SEAL">SEAL</option>
+              <option value="SEAL 6">SEAL 6</option>
+              <option value="SEALION 5">SEALION 5</option>
+              <option value="SEALION 6">SEALION 6</option>
+              <option value="SEALION 7">SEALION 7</option>
+              <option value="SEALION 8">SEALION 8</option>
+              <option value="SHARK 6">SHARK 6</option>
+            </>
+          )}
         </select>
 
         {/* Status Filter */}
@@ -511,10 +566,10 @@ export function Inventory({
       </div>
 
       {/* Summary chips */}
-      {!loading && !error && items.length > 0 && (
+      {!loading && !error && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
           {[
-            { label: "Total", value: items.length, icon: Activity, color: "#6366f1" },
+            { label: "Total", value: totalVehicles, icon: Activity, color: "#6366f1" },
             { label: "In Stock", value: inStockCount, icon: CheckCircle2, color: "#16a34a" },
             { label: "Delivered", value: deliveredCount, icon: Truck, color: "#2563eb" },
             { label: "In Transit", value: inTransitCount, icon: Clock, color: "#d97706" },
@@ -587,7 +642,7 @@ export function Inventory({
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((r) => {
+                items.map((r) => {
                   const vehicleTitle = getVehicleTitle(r);
                   const colour = getColour(r);
                   const price = formatPrice(r);
@@ -834,10 +889,13 @@ export function Inventory({
             <Pagination
               currentPage={page}
               totalPages={totalPages}
-              totalItems={items.length}
+              totalItems={totalCount}
               pageSize={pageSize}
               onPageChange={setPage}
-              onPageSizeChange={setPageSize}
+              onPageSizeChange={(newSize) => {
+                setPageSize(newSize);
+                setPage(1);
+              }}
               itemLabel="vehicles"
             />
           </div>

@@ -409,12 +409,56 @@ export interface InventoryItem {
   };
 }
 
-export const getInventory = async (params?: Record<string, string>) => {
-  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+export interface InventoryStats {
+  total: number;
+  inStock: number;
+  delivered: number;
+  inTransit: number;
+  demo: number;
+  shirley: number;
+  virtualyard: number;
+  autogate: number;
+}
+
+export interface InventoryResponse {
+  success?: boolean;
+  data: InventoryItem[];
+  total: number;
+  page: number;
+  totalPages: number;
+  limit: number;
+  stats?: InventoryStats;
+}
+
+export const getInventory = async (params?: Record<string, string | number>): Promise<InventoryResponse> => {
+  const queryObj: Record<string, string> = {};
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") {
+        queryObj[k] = String(v);
+      }
+    });
+  }
+  const qs = Object.keys(queryObj).length > 0 ? "?" + new URLSearchParams(queryObj).toString() : "";
   const res: any = await request<any>(`/inventory${qs}`);
-  if (Array.isArray(res)) return res;
-  if (res && Array.isArray(res.data)) return res.data;
-  return [];
+  if (Array.isArray(res)) {
+    return {
+      data: res,
+      total: res.length,
+      page: 1,
+      totalPages: 1,
+      limit: res.length,
+    };
+  }
+  return {
+    success: res.success ?? true,
+    data: res.data || [],
+    total: res.total || (res.data ? res.data.length : 0),
+    page: res.page || 1,
+    totalPages: res.totalPages || 1,
+    limit: res.limit || 25,
+    stats: res.stats,
+  };
 };
 
 export const getInventoryFilters = () =>
