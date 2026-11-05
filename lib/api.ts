@@ -467,6 +467,7 @@ export const getInventoryFilters = () =>
     statuses: string[];
     models: string[];
     platforms: string[];
+    site?: string;
   }>("/inventory/filters");
 
 export const getPaginatedInventory = (params?: Record<string, string | number>) => {

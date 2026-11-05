@@ -340,6 +340,7 @@ export default function LeadCentre() {
           <Inventory
             key={`${refreshKey}-${effectiveLocation}`}
             locationFilter={activeYard}
+            lockedSite={lockedSite || (user?.all_sites !== true && !Array.isArray(user?.allowed_sites) ? user?.site || "" : "")}
             onLocationChange={handleLocationChange}
           />
         ),

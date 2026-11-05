@@ -25,7 +25,7 @@ import {
 import { Card, Button, Pill, PageHeader } from "../shared";
 import { Pagination } from "../pagination";
 import { getInventory, getInventoryFilters, type InventoryItem, type InventoryStats } from "@/lib/api";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -263,9 +263,11 @@ function HealthBar({ score }: { score: number }) {
 
 export function Inventory({
   locationFilter = "",
+  lockedSite = "",
   onLocationChange,
 }: {
   locationFilter?: string;
+  lockedSite?: string;
   onLocationChange?: (loc: string) => void;
 } = {}) {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -294,7 +296,10 @@ export function Inventory({
     statuses: string[];
     models: string[];
     platforms: string[];
+    site?: string;
   } | null>(null);
+  const siteLock = lockedSite || filterOptions?.site || "";
+  const requestSequence = useRef(0);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -302,21 +307,21 @@ export function Inventory({
 
   // Synchronize yardFilter when locationFilter prop changes from parent
   useEffect(() => {
-    if (locationFilter) {
-      setYardFilter(locationFilter);
-    }
+    setYardFilter(locationFilter || "");
+    setSelectedVehicle(null);
   }, [locationFilter]);
 
-  // Load distinct filter options on mount
+  // Filter options use the same authenticated site as the vehicles.
   useEffect(() => {
+    let cancelled = false;
+    setFilterOptions(null);
     getInventoryFilters()
       .then((opts) => {
-        if (opts) setFilterOptions(opts);
+        if (!cancelled && opts) setFilterOptions(opts);
       })
-      .catch(() => {
-        // Fall back to built-in options
-      });
-  }, []);
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [locationFilter]);
 
   // Debounce search input (250ms)
   useEffect(() => {
@@ -332,8 +337,13 @@ export function Inventory({
   }, [debouncedSearch, modelFilter, statusFilter, yardFilter, conditionFilter, platformFilter, networkFilter]);
 
   const fetchInventory = useCallback(() => {
+    const sequence = ++requestSequence.current;
     setLoading(true);
     setError(null);
+    setItems([]);
+    setStats(null);
+    setTotalCount(0);
+    setSelectedVehicle(null);
     const params: Record<string, string | number> = {
       page,
       limit: pageSize,
@@ -341,7 +351,7 @@ export function Inventory({
     if (debouncedSearch) params.q = debouncedSearch;
     if (modelFilter) params.model = modelFilter;
     if (statusFilter) params.status = statusFilter;
-    const effectiveYard = yardFilter || locationFilter;
+    const effectiveYard = siteLock || yardFilter || locationFilter;
     if (effectiveYard && effectiveYard !== "All Locations" && effectiveYard !== "All Yards") {
       params.location = effectiveYard;
     }
@@ -350,6 +360,7 @@ export function Inventory({
 
     getInventory(params)
       .then((res) => {
+        if (sequence !== requestSequence.current) return;
         let list = res.data || [];
         // Client-side network filter
         if (networkFilter === "published") list = list.filter((i: InventoryItem) => i.onCarsalesNetwork === true);
@@ -361,15 +372,16 @@ export function Inventory({
           setStats(res.stats);
         }
       })
-      .catch((err) => setError(err.message || "Failed to load inventory"))
-      .finally(() => setLoading(false));
-  }, [page, pageSize, debouncedSearch, modelFilter, statusFilter, yardFilter, locationFilter, conditionFilter, platformFilter, networkFilter]);
+      .catch((err) => { if (sequence === requestSequence.current) setError(err.message || "Failed to load inventory"); })
+      .finally(() => { if (sequence === requestSequence.current) setLoading(false); });
+  }, [page, pageSize, debouncedSearch, modelFilter, statusFilter, yardFilter, locationFilter, siteLock, conditionFilter, platformFilter, networkFilter]);
 
   useEffect(() => {
     fetchInventory();
+    return () => { requestSequence.current++; };
   }, [fetchInventory]);
 
-  // Aggregate Counts for Summary Chips (prioritizes backend global stats, fallbacks to loaded items)
+  // Summary chips use the backend's authenticated site totals.
   const autogateCount = stats?.autogate ?? items.filter((i) => i.platform === "autogate").length;
   const virtualyardCount = stats?.virtualyard ?? items.filter((i) => i.platform === "virtualyard").length;
   const shirleyCount = stats?.shirley ?? items.filter((i) => i.platform === "shirley").length;
@@ -409,7 +421,7 @@ export function Inventory({
     if (onLocationChange) onLocationChange("All Locations");
   };
 
-  const activeYardDisplay = yardFilter || locationFilter;
+  const activeYardDisplay = siteLock || yardFilter || locationFilter;
 
   return (
     <>
@@ -445,7 +457,7 @@ export function Inventory({
               Showing Inventory vehicles located at: <strong>{activeYardDisplay}</strong>
             </span>
           </div>
-          <button
+          {!siteLock && <button
             onClick={handleClearYard}
             style={{
               background: "none",
@@ -457,7 +469,7 @@ export function Inventory({
             }}
           >
             Clear Yard Filter
-          </button>
+          </button>}
         </div>
       )}
 
@@ -472,81 +484,35 @@ export function Inventory({
         />
 
         {/* Yard / Location Filter */}
-        <select value={yardFilter} onChange={(e) => handleYardChange(e.target.value)}>
-          <option value="">All Yards & Locations</option>
-          {filterOptions?.locations && filterOptions.locations.length > 0 ? (
-            filterOptions.locations.map((loc) => (
+        <select value={siteLock || yardFilter} disabled={!!siteLock} onChange={(e) => handleYardChange(e.target.value)}>
+          {!siteLock && <option value="">All Yards & Locations</option>}
+          {(siteLock ? [siteLock] : filterOptions?.locations || []).map((loc) => (
               <option key={loc} value={loc}>
                 {loc}
               </option>
-            ))
-          ) : (
-            <>
-              <option value="Warehouse">Warehouse (Main Holding)</option>
-              <option value="Clayton">Clayton Storage</option>
-              <option value="BYD Caroline Springs">BYD Caroline Springs</option>
-              <option value="BYD Fairfield">BYD Fairfield</option>
-              <option value="BYD Nunawading">BYD Nunawading</option>
-              <option value="BYD Melbourne City">BYD Melbourne City</option>
-              <option value="Holding Yard VIC">Holding Yard VIC</option>
-              <option value="BYD Wodonga">BYD Wodonga</option>
-              <option value="BYD Doncaster">BYD Doncaster</option>
-              <option value="VELO">VELO Delivery</option>
-              <option value="DENZA Kew">DENZA Kew</option>
-              <option value="DENZA Kingsway">DENZA Kingsway</option>
-              <option value="In Transit">In Transit</option>
-            </>
-          )}
+            ))}
         </select>
 
         {/* Model Filter */}
         <select value={modelFilter} onChange={(e) => handleModelChange(e.target.value)}>
           <option value="">All models</option>
-          {filterOptions?.models && filterOptions.models.length > 0 ? (
-            filterOptions.models.map((m) => (
+          {(filterOptions?.models || []).map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
-            ))
-          ) : (
-            <>
-              <option value="ATTO 1">ATTO 1</option>
-              <option value="ATTO 2">ATTO 2</option>
-              <option value="ATTO 3">ATTO 3</option>
-              <option value="DOLPHIN">DOLPHIN</option>
-              <option value="SEAL">SEAL</option>
-              <option value="SEAL 6">SEAL 6</option>
-              <option value="SEALION 5">SEALION 5</option>
-              <option value="SEALION 6">SEALION 6</option>
-              <option value="SEALION 7">SEALION 7</option>
-              <option value="SEALION 8">SEALION 8</option>
-              <option value="SHARK 6">SHARK 6</option>
-            </>
-          )}
+            ))}
         </select>
 
         {/* Status Filter */}
         <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}>
           <option value="">All statuses</option>
-          <option value="In Stock">In Stock / Available</option>
-          <option value="Delivered">Delivered</option>
-          <option value="In Transit">In Transit</option>
-          <option value="Demo">Demo</option>
-          <option value="Sold">Sold</option>
-          <option value="Display">Display</option>
-          <option value="On Hold">On Hold</option>
-          <option value="Damage">Damage</option>
-          <option value="Allocated">Allocated</option>
+          {(filterOptions?.statuses || []).map(status => <option key={status} value={status}>{status}</option>)}
         </select>
 
         {/* Platform Filter */}
         <select value={platformFilter} onChange={(e) => handlePlatformChange(e.target.value)}>
           <option value="">All platforms</option>
-          <option value="shirley">Shirley Inventory</option>
-          <option value="virtualyard">Virtual Yard</option>
-          <option value="autogate">Autogate</option>
-          <option value="dealer_studio">Dealer Studio</option>
-          <option value="manual">Manual</option>
+          {(filterOptions?.platforms || []).map(platform => <option key={platform} value={platform}>{platform.replace(/_/g, " ")}</option>)}
         </select>
 
         {/* Condition Filter */}

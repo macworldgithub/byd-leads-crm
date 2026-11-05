@@ -341,7 +341,7 @@ export function Dashboard({
             </svg>
           </div>
           <span className="text-xs sm:text-sm text-[#46505f] truncate">
-            {inventoryStats?.available ?? 660} vehicles available from {inventoryStats?.total ?? 1052} monitored records
+            {inventoryStats?.available ?? 0} vehicles available from {inventoryStats?.total ?? 0} monitored records
           </span>
         </div>
         <div className="text-xs sm:text-sm text-[#46505f] sm:text-right whitespace-normal sm:whitespace-nowrap">
