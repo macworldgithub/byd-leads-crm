@@ -729,6 +729,7 @@ export interface CrmAllocationPayload {
   vehicle: string;
   site: string;
   assigned_to: string;
+  assigned_to_user_id?: string;
   score?: number;
   notes?: string;
   is_demo?: boolean;
@@ -746,7 +747,7 @@ export interface CrmAllocationResponse {
 export async function allocateLeadToSalesCrm(
   payload: CrmAllocationPayload
 ): Promise<CrmAllocationResponse> {
-  const eventId = `EVT-LC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  const eventId = `EVT-LC-${payload.lead_prospect_id}-${payload.assigned_to_user_id || payload.assigned_to}`;
   const webhookBody = {
     event_id: eventId,
     event: "lead.allocated",
@@ -763,6 +764,7 @@ export async function allocateLeadToSalesCrm(
       email: payload.email,
       site: payload.site,
       assigned_to: payload.assigned_to,
+      assigned_to_user_id: payload.assigned_to_user_id,
       vehicle: payload.vehicle,
       score: payload.score || 85,
       notes: payload.notes,
@@ -780,23 +782,17 @@ export async function allocateLeadToSalesCrm(
       throw new Error(err.message || "Failed to allocate to Sales CRM");
     }
     const json = await res.json();
+    if (!json.success || !json.allocation_id || json.quarantined) throw new Error(json.message || 'Allocation was not confirmed by Sales Floor.');
     return {
-      success: true,
+      success: json.success === true && Boolean(json.allocation_id),
       message: json.message || `Allocated to ${payload.assigned_to} at ${payload.site}`,
-      allocation_id: json.allocation_id || `ALC-${Date.now().toString().slice(-6)}`,
+      allocation_id: json.allocation_id,
       customer_id: json.customer_id,
       opportunity_id: json.opportunity_id,
       data: json,
     };
   } catch (err: any) {
-    // Graceful fallback for demo/offline resilience
-    return {
-      success: true,
-      message: `Allocated to ${payload.assigned_to} at ${payload.site}`,
-      allocation_id: `ALC-${Date.now().toString().slice(-6)}`,
-      customer_id: `CUST-${Date.now().toString().slice(-6)}`,
-      opportunity_id: `OPP-${Date.now().toString().slice(-6)}`,
-    };
+    throw new Error(err.message || 'The lead was not allocated. Please try again.');
   }
 }
 

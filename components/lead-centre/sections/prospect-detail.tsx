@@ -148,15 +148,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
     }).catch(() => { if (!cancelled) setStaffError('Unable to load site staff. Please try again.'); });
     return () => { cancelled = true; };
   }, [allocatedSite, isAllocateModalOpen]);
-  const [allocatedCrmData, setAllocatedCrmData] = useState<any>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(`crm_alloc_${prospectId}`);
-      if (stored) {
-        try { return JSON.parse(stored); } catch {}
-      }
-    }
-    return null;
-  });
+  const [allocatedCrmData, setAllocatedCrmData] = useState<any>(null);
 
   const [qualification, setQualification] = useState({
     intent: "—",
@@ -294,9 +286,11 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
   };
 
   // Sales Floor Allocation (§8.2, AC-4, AC-11)
+  const [allocationError, setAllocationError] = useState('');
   const handleAllocateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!allocationStaff.some(member => member.name === allocatedConsultant)) return;
+    if (!allocationStaff.some(member => member._id === allocatedConsultant)) return;
+    setAllocationError('');
     setIsAllocating(true);
     const isProdMode = typeof window !== "undefined" && localStorage.getItem("byd_leads_mode") === "production";
 
@@ -308,16 +302,18 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
         email: prospect?.email || "",
         vehicle,
         site: allocatedSite,
-        assigned_to: allocatedConsultant,
+        assigned_to: allocationStaff.find(member => member._id === allocatedConsultant)!.email,
+        assigned_to_user_id: allocatedConsultant,
         score: qualification ? 85 : 70,
         notes: allocationNotes.trim() || `Allocated from Lead Centre. Vehicle interest: ${vehicle}.`,
         is_demo: false,
       });
 
+      if (!res.success || !res.allocation_id) throw new Error(res.message || "Allocation was not confirmed.");
       const allocResult = {
         allocated_to_crm: true,
         site: allocatedSite,
-        consultant: allocatedConsultant,
+        consultant: allocationStaff.find(member => member._id === allocatedConsultant)!.name,
         allocated_at: new Date().toISOString(),
         customer_id: res.customer_id,
         opportunity_id: res.opportunity_id,
@@ -325,13 +321,11 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
       };
 
       setAllocatedCrmData(allocResult);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(`crm_alloc_${prospectId}`, JSON.stringify(allocResult));
-      }
+
 
       setIsAllocateModalOpen(false);
     } catch (err: any) {
-      console.error("Allocation error:", err);
+      setAllocationError(err.message || "The lead could not be allocated. Please retry.");
     } finally {
       setIsAllocating(false);
     }
@@ -796,6 +790,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
           onClose={() => setIsAllocateModalOpen(false)}
         >
           <form onSubmit={handleAllocateSubmit} className="space-y-4 pt-2">
+            {allocationError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{allocationError}</p>}
             <div>
               <label className="text-xs font-bold text-gray-800 block mb-1">
                 Target Dealership / Floor Site *
@@ -820,7 +815,7 @@ export function ProspectDetail({ prospect, onBack }: ProspectDetailProps) {
                 className="w-full text-xs p-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white outline-none"
               >
                 <option value="">Select staff member</option>
-                {allocationStaff.map(member => <option key={member.email} value={member.name}>{member.name}</option>)}
+                {allocationStaff.map(member => <option key={member.email} value={member._id}>{member.name}</option>)}
               </select>
               {staffError && <p role="alert" className="text-xs text-red-700">{staffError}</p>}
             </div>
