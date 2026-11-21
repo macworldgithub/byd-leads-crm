@@ -713,7 +713,7 @@ export const CRM_BASE_URL =
   process.env.NEXT_PUBLIC_CRM_URL ||
   (typeof window !== "undefined" && window.location.hostname === "localhost"
     ? "http://localhost:3000"
-    : "https://crm.goodshowroom.com");
+    : "https://sales-floor.goodshowroom.com");
 
 export const CRM_BACKEND_URL =
   process.env.NEXT_PUBLIC_CRM_BACKEND_URL ||
